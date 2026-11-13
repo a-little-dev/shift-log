@@ -1,0 +1,2911 @@
+/* ==================================================================
+   Shift Log — night edition
+   Display: Archivo · UI: Manrope · Data: IBM Plex Mono
+   ================================================================== */
+
+/* The typefaces are served from this site. Nothing is fetched from, or
+   reported to, anybody else when the log is opened. (SIL Open Font License.) */
+@font-face { font-family: 'Archivo'; font-style: normal; font-weight: 100 900; font-stretch: 100%; font-display: swap; src: url('fonts/archivo-latin-wght-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Manrope'; font-style: normal; font-weight: 200 800; font-display: swap; src: url('fonts/manrope-latin-wght-normal.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('fonts/ibm-plex-mono-latin-500-normal.woff2') format('woff2'); }
+
+.sl-app {
+  /* --- canvas: near black, warm rather than blue --- */
+  --void:     #0a0a0b;
+  --ink-1:    rgba(255,255,255,.035);
+  --ink-2:    rgba(255,255,255,.055);
+  --ink-3:    rgba(255,255,255,.08);
+
+  /* hairlines are gold, faintly — the structure of the page is the metal */
+  --edge:     rgba(255,255,255,.09);
+  --edge-lit: rgba(255,255,255,.2);
+  --edge-cool: rgba(255,255,255,.07);
+
+  /* --- type: warm off-white, never pure --- */
+  --text:   #f4efe6;
+  --text-2: #bdb5a8;
+  --text-3: #8a8378;
+
+  /* --- gold, as metal rather than as a colour ---
+     A single value reads as yellow paint. Metal reads as metal because it
+     carries a highlight, a midtone, a shadow and a specular band at once,
+     all within one hue. These stops run light-dark-light-dark so a surface
+     picks up the same banding a polished edge does. */
+  --gold-hi:   #f7e7b8;   /* catch light */
+  --gold-lit:  #e3c374;
+  --gold:      #c9a227;   /* the true midtone */
+  --gold-deep: #9a7524;
+  --gold-dark: #6d4f14;   /* shadow in the metal */
+  --gold-wash: rgba(201,162,39,.11);
+
+  --metal: linear-gradient(135deg,
+    #f7e7b8 0%, #d9b64f 16%, #b8891f 34%,
+    #f0dc9a 52%, #c39a2e 68%, #8a6318 86%, #dcbc65 100%);
+  --metal-soft: linear-gradient(135deg,
+    rgba(247,231,184,.18) 0%, rgba(217,182,79,.14) 45%,
+    rgba(138,99,24,.16) 75%, rgba(220,188,101,.18) 100%);
+
+  /* raised metal: a light top edge and a dark underside */
+  --metal-edge: inset 0 1px 0 rgba(255,246,214,.65), inset 0 -1px 0 rgba(80,55,8,.5);
+
+  --pink:      #e0567f;   /* the interface accent */
+  --pink-lit:  #f0a2ba;
+  --pink-deep: #a83a5c;
+  --pink-wash: rgba(224,86,127,.13);
+
+  /* Category colours. Jewel tones, none of them green, red or gold — those
+     three now mean one thing each: kept, missed, and the logo. */
+  --c1: #8e6bbf;   /* amethyst */
+  --c2: #2e9aa6;   /* teal */
+  --c3: #5878b0;   /* lapis */
+  --c4: #b4589e;   /* orchid */
+  --c5: #6e8ca0;   /* steel */
+
+  --on-c: #0d0810;
+
+  /* the data only: deep emerald and garnet, not neon */
+  /* Emerald rather than mint: the old pair sat at a third saturation, which
+     is what made it look chalky. These are the same hue, much deeper. */
+  --jade:      #12a06a;   /* fills */
+  --jade-lit:  #16b37c;   /* text on black */
+  --rose:      #cf6076;
+
+  --on-gold: #241a04;   /* warm, never neutral black, on metal */
+  --on-pink: #1d0a10;
+
+  --r-sm: 12px;
+  --r-md: 18px;
+  --r-lg: 26px;
+  --r-xl: 34px;
+  --field-h: 54px;
+
+  --glow:    0 0 0 1px var(--edge), 0 18px 46px -22px rgba(0,0,0,.95);
+  --glow-up: 0 0 0 1px var(--edge-lit), 0 26px 60px -24px rgba(0,0,0,1);
+  --inner:   inset 0 1px 0 rgba(255,255,255,.05);
+  --press:   inset 0 2px 5px rgba(0,0,0,.5);
+
+  width: 100%;
+  min-height: 100vh;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 0;
+  background-color: var(--void);
+  color: var(--text);
+  font-family: 'Manrope', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.65;
+  letter-spacing: .002em;
+  padding: 40px clamp(16px, 3.2vw, 56px) 96px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.sl-app *, .sl-app *::before, .sl-app *::after { box-sizing: border-box; }
+
+/* ==================================================================
+   The room the app stands in
+
+   Flat black is a wall with the lights off. What makes a dark interface
+   read as expensive is that the black is not one value: a warm centre,
+   cool corners, and slow colour moving through it that you never quite
+   catch. Three fixed layers, none of which scroll, so the cards above
+   them float rather than sit.
+
+     1  auroras + sheen   two pink lights and one gold, drifting
+     2  vignette          corners pulled down, aligned to the viewport
+     3  grain             fine noise, which is what stops a dark
+                          gradient banding into stripes
+
+   Two rules learned the hard way and worth keeping written down:
+
+   The drifting layer is overscanned so no edge ever slides into view —
+   which means a vignette cannot live on it, since its dark corners
+   would fall outside the screen. The vignette gets its own layer at
+   exactly the viewport.
+
+   And grain is a speckle, not a wash. At any real opacity it lifts
+   black to grey and the whole room goes flat and cheap. It belongs at
+   around a tenth, where you cannot see it but you can see what it does.
+
+   The panel behind the logo also carries .sl-app for its type and colour
+   tokens, so it is excluded — it has its own ground and must not paint
+   the room a second time on top of the page.
+   ================================================================== */
+.sl-app:not(.sl-admin)::before,
+.sl-app:not(.sl-admin)::after {
+  content: "";
+  position: fixed;
+  pointer-events: none;
+}
+
+/* 1 — colour and sheen, slowly moving, overscanned */
+.sl-app:not(.sl-admin)::before {
+  inset: -12%;
+  z-index: -3;
+  background:
+    /* The sheen: one very wide band of light crossing the room. The stops
+       are spread right across the layer on purpose — tightened up, the
+       band's own edge becomes visible as a diagonal seam across the page. */
+    linear-gradient(118deg,
+      rgba(255,255,255,0) 8%,
+      rgba(247,231,184,.014) 34%,
+      rgba(240,162,186,.022) 50%,
+      rgba(224,86,127,.014) 66%,
+      rgba(255,255,255,0) 92%),
+    /* gold, top right — the metal in the logo, echoed faintly */
+    radial-gradient(680px 520px at 88% 6%, rgba(201,162,39,.055) 0%, rgba(201,162,39,0) 68%),
+    /* pink, bottom right */
+    radial-gradient(900px 700px at 96% 92%, rgba(224,86,127,.1) 0%, rgba(224,86,127,0) 66%),
+    /* pink, top left — the largest and the warmest */
+    radial-gradient(1200px 820px at 6% -6%, rgba(224,86,127,.13) 0%, rgba(224,86,127,0) 62%);
+  animation: sldrift 52s ease-in-out infinite alternate;
+}
+
+/* 2 — the vignette, at the viewport exactly so its corners land on the corners */
+.sl-app:not(.sl-admin)::after {
+  inset: 0;
+  z-index: -2;
+  background: radial-gradient(135% 115% at 50% 38%,
+    rgba(0,0,0,0) 38%, rgba(0,0,0,.35) 74%, rgba(0,0,0,.62) 100%);
+}
+
+/* 3 — grain, above the colour and below the app */
+.sl-app > .sl-wrap { position: relative; z-index: 1; }
+.sl-app:not(.sl-admin) > .sl-wrap::before {
+  content: "";
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  opacity: .1;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/* A slow wander. Nothing here should ever be caught moving — it is the
+   difference between a still image and a room, not an animation. */
+@keyframes sldrift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(-1.6%, 1.1%, 0) scale(1.04); }
+  100% { transform: translate3d(1.4%, -1.3%, 0) scale(1.02); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-app:not(.sl-admin)::before { animation: none; }
+}
+.sl-app button { font-family: inherit; }
+/* Figures line up whether the row reads 7 or 700. */
+.sl-app .sl-statnum, .sl-app .sl-table, .sl-app .sl-mono, .sl-app .sl-vsval,
+.sl-app .sl-tabcount, .sl-app .sl-morecount { font-variant-numeric: tabular-nums; }
+/* Narrower than before: at 1560px the tables stretched and the eye had to
+   travel too far across a row. 1340px keeps a line of figures readable. */
+.sl-wrap { width: 100%; max-width: 1340px; margin: 0 auto; }
+
+/* ==================================================================
+   Surfaces — glass, not boxes
+   ================================================================== */
+.sl-card {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.045) 0%, rgba(255,255,255,.02) 100%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 0;
+  border-radius: var(--r-lg);
+  padding: 34px clamp(22px, 2.6vw, 38px) 30px;
+  /* Two shadows: a tight one that seats the card, and a wide soft one that
+     puts real distance between it and the room behind. A single shadow at
+     this size reads as a border; a pair reads as height. */
+  box-shadow:
+    0 2px 6px -2px rgba(0,0,0,.7),
+    0 30px 70px -34px rgba(0,0,0,1),
+    0 60px 120px -60px rgba(224,86,127,.14);
+  transition: box-shadow .35s ease;
+}
+/* a hairline that fades away rather than boxing the card in */
+.sl-card::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  padding: 1px;
+  background: linear-gradient(150deg, rgba(240,162,186,.5) 0%, rgba(224,86,127,.14) 30%, rgba(224,86,127,0) 62%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+/* a single gold hairline instead of a bevel */
+.sl-card::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--edge);
+  pointer-events: none;
+}
+.sl-card + .sl-card { margin-top: 22px; }
+.sl-grid + .sl-card, .sl-stats + .sl-card, .sl-privrow + .sl-card, .sl-duo + .sl-card { margin-top: 22px; }
+.sl-cardhead { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+.sl-eyebrow {
+  display: flex; align-items: center; gap: 14px; margin: 0 0 24px;
+  font-family: 'Archivo', 'Manrope', sans-serif;
+  font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-2);
+}
+.sl-eyebrow::before {
+  content: ""; width: 22px; height: 2px; background: var(--pink); flex: none;
+}
+.sl-eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--edge); }
+.sl-cardhead .sl-eyebrow::after { display: none; }
+
+/* ==================================================================
+   Masthead
+   ================================================================== */
+.sl-logo { display: flex; align-items: center; gap: 15px; }
+/* The only gold left on the page. */
+/* ==================================================================
+   The seal
+
+   Named sl-lm-* throughout: the old names were sl-ring, sl-disc and
+   sl-letter, and sl-ring is also the rate ring on My insights — a rule
+   written for one was silently reaching into the other.
+   ================================================================== */
+.sl-logomark {
+  flex: none; display: block;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,.75)) drop-shadow(0 0 14px rgba(201,162,39,.12));
+}
+.sl-logomark .sl-lm-rim     { stroke: url(#slRim); fill: none; }
+.sl-logomark .sl-lm-rimlite { stroke: rgba(247,231,184,.34); fill: none; }
+.sl-logomark .sl-lm-face    { fill: url(#slWell); }
+.sl-logomark .sl-lm-well    { stroke: rgba(0,0,0,.65); fill: none; }
+.sl-logomark .sl-lm-line    { stroke: rgba(201,162,39,.3); fill: none; }
+.sl-logomark .sl-lm-cut     { stroke: rgba(0,0,0,.72); fill: none; }
+.sl-logomark .sl-lm-letter  { stroke: url(#slMetal); fill: none; }
+.sl-logomark .sl-lm-spec    { stroke: rgba(255,248,224,.3); fill: none; }
+.sl-logomark .sl-lm-shine   { stroke: url(#slShine); fill: none; opacity: 0; }
+
+/* --- struck, once, on arrival ---
+   The rim draws itself around, the letter is cut in after it, and a shine
+   runs the length of the stroke as it settles. */
+.sl-logomark.is-striking { animation: sllmland 1s cubic-bezier(.2,.9,.25,1) both; }
+@keyframes sllmland {
+  0%   { opacity: 0; transform: scale(.82) rotate(-14deg); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: none; }
+}
+.sl-logomark.is-striking .sl-lm-rim {
+  stroke-dasharray: 141; stroke-dashoffset: 141;
+  animation: sllmdraw .9s cubic-bezier(.3,.8,.3,1) .1s forwards;
+}
+.sl-logomark.is-striking .sl-lm-rimlite,
+.sl-logomark.is-striking .sl-lm-line {
+  opacity: 0; animation: sllmfade .5s ease .75s forwards;
+}
+.sl-logomark.is-striking .sl-lm-cut,
+.sl-logomark.is-striking .sl-lm-letter {
+  stroke-dasharray: 62; stroke-dashoffset: 62;
+  animation: sllmdraw .85s cubic-bezier(.35,.75,.3,1) .5s forwards;
+}
+.sl-logomark.is-striking .sl-lm-spec {
+  opacity: 0; animation: sllmfade .6s ease 1.1s forwards;
+}
+.sl-logomark.is-striking .sl-lm-shine {
+  stroke-dasharray: 16 62; stroke-dashoffset: 62;
+  animation: sllmshine 1s cubic-bezier(.35,.7,.3,1) 1.15s both;
+}
+@keyframes sllmdraw  { to { stroke-dashoffset: 0; } }
+@keyframes sllmfade  { to { opacity: 1; } }
+@keyframes sllmshine {
+  0%   { opacity: 0; stroke-dashoffset: 62; }
+  25%  { opacity: 1; }
+  100% { opacity: 0; stroke-dashoffset: -30; }
+}
+
+/* the wordmark arrives just behind the seal */
+.sl-logo .sl-wordmark, .sl-logo .sl-tagline, .sl-logo .sl-build {
+  animation: sllmword .7s cubic-bezier(.2,.85,.25,1) both;
+}
+.sl-logo .sl-wordmark { animation-delay: .35s; }
+.sl-logo .sl-tagline  { animation-delay: .46s; }
+.sl-logo .sl-build    { animation-delay: .54s; }
+@keyframes sllmword {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.sl-wordmark {
+  font-family: 'Archivo', system-ui, sans-serif;
+  font-weight: 700; font-size: 29px; line-height: 1; letter-spacing: -.02em; margin: 0;
+  background: var(--metal); -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(255,246,214,.18)) drop-shadow(0 2px 6px rgba(0,0,0,.5));
+}
+.sl-wordmark em { font-style: normal; font-weight: 400; color: var(--pink); }
+.sl-tagline { font-size: 10.5px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--text-3); margin: 7px 0 0; }
+
+.sl-top {
+  position: relative;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 18px 28px; flex-wrap: wrap;
+  padding-bottom: 24px; border-bottom: 1px solid var(--edge);
+}
+.sl-top::after {
+  content: ""; position: absolute; left: 0; bottom: -1px; width: 92px; height: 2px;
+  background: var(--pink);
+}
+.sl-sub { margin: 9px 0 0; color: var(--text-2); max-width: 52ch; font-size: 15.5px; }
+.sl-who { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+.sl-idchip {
+  display: inline-flex; align-items: center; gap: 9px; padding: 9px 16px; border-radius: 999px;
+  background: var(--ink-2); box-shadow: 0 0 0 1px var(--edge), var(--inner);
+  font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  font-size: 12.5px; letter-spacing: .04em; color: var(--text-2); white-space: nowrap;
+}
+.sl-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--jade); box-shadow: 0 0 12px 2px rgba(18,160,106,.7); animation: slpulse 2.6s ease-in-out infinite; }
+@keyframes slpulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+
+/* ==================================================================
+   Saving a ticket — gilded light, drawn on a canvas
+   The particles live in JS; all the stylesheet holds is the surface
+   they are painted on. It never intercepts a click and never scrolls.
+   ================================================================== */
+.sl-halo { position: fixed; inset: 0; z-index: 9999; pointer-events: none; width: 100vw; height: 100vh; }
+
+/* the ticket that just landed */
+.sl-stub.is-fresh {
+  animation: slland .9s cubic-bezier(.2,.9,.25,1) both;
+  box-shadow: 0 0 0 1px rgba(224,86,127,.8), 0 0 40px -10px rgba(224,86,127,.55), var(--inner);
+}
+.sl-stub.is-fresh::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.2) 50%, transparent 70%);
+  transform: translateX(-110%); animation: slsweep 1.1s ease-out .15s both;
+}
+@keyframes slland {
+  0%   { transform: scale(.94) translateY(-10px); opacity: .3; }
+  55%  { transform: scale(1.02) translateY(0); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes slsweep { 0% { transform: translateX(-110%); } 100% { transform: translateX(130%); } }
+
+.sl-note { animation: slrise .3s cubic-bezier(.2,.8,.2,1) both; }
+
+/* ==================================================================
+   Waiting for the pooled figures
+   ================================================================== */
+.sl-skeleton { animation: slfadein .3s ease both; }
+@keyframes slfadein { from { opacity: 0; } to { opacity: 1; } }
+
+.sl-skelstrip {
+  display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0;
+  border-top: 1px solid var(--edge); border-bottom: 1px solid var(--edge);
+  margin-bottom: 26px;
+}
+.sl-skelcell { height: 96px; }
+.sl-skelcell + .sl-skelcell { border-left: 1px solid var(--edge); }
+.sl-skelcard { height: 230px; border-radius: var(--r-lg); background: rgba(255,255,255,.03); }
+.sl-skelduo { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 26px; }
+@media (min-width: 1180px) { .sl-skelduo { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+
+/* a slow sweep, so it reads as loading rather than as broken */
+.sl-skelcell, .sl-skelcard { position: relative; overflow: hidden; }
+.sl-skelcell::after, .sl-skelcard::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,.055) 50%, transparent 80%);
+  transform: translateX(-100%);
+  animation: slskel 1.6s ease-in-out infinite;
+}
+@keyframes slskel { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+/* the tab dims a little while newer figures are on their way */
+.sl-refreshing { opacity: .55; transition: opacity .2s ease; }
+
+/* ==================================================================
+   Collapsing sections
+   ================================================================== */
+/* ==================================================================
+   Panels — tiles rather than bars
+
+   Closed, these sit two to a row as proper cards: a pink-lit mark, the
+   title, and a line saying what is inside, so the choice is legible
+   before you open anything. The open one takes the full width and the
+   rest close ranks around it.
+   ================================================================== */
+.sl-panels {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px; margin-top: 22px; align-items: start;
+}
+.sl-panel.is-open { grid-column: 1 / -1; }
+/* A row holding one panel spans it, rather than leaving half the width
+   empty beside it — which is what "The weeks before" did on its own. */
+.sl-panels > .sl-panel:only-child { grid-column: 1 / -1; }
+@media (max-width: 860px) { .sl-panels { grid-template-columns: 1fr; } }
+/* Laid out as a wrapping row rather than a fixed two-column grid, so a panel
+   left on its own at the end of the list takes the whole row instead of
+   sitting beside an empty half. Seven sections no longer leave a hole. */
+.sl-panels { display: flex; flex-wrap: wrap; align-items: flex-start; }
+.sl-panels > .sl-panel { flex: 1 1 calc(50% - 7px); min-width: 0; }
+.sl-panels > .sl-panel.is-open { flex-basis: 100%; }
+@media (max-width: 860px) { .sl-panels > .sl-panel { flex-basis: 100%; } }
+
+.sl-panel {
+  position: relative;
+  /* A grid item sizes to its content unless told otherwise, so a wide table
+     inside a panel pushed the whole page sideways instead of scrolling in
+     its own box. The table's container can only do its job if the panel
+     above it is allowed to be narrower than the table. */
+  min-width: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,.045) 0%, rgba(255,255,255,.018) 100%);
+  border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px var(--edge);
+  overflow: hidden;
+  transition: box-shadow .3s ease, background .3s ease, transform .25s cubic-bezier(.4,0,.2,1);
+}
+/* a pink hairline down the leading edge, lit on hover and while open */
+.sl-panel::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+  background: linear-gradient(180deg, rgba(224,86,127,.55), rgba(224,86,127,.08));
+  opacity: .45; transition: opacity .3s ease;
+}
+.sl-panel:hover { transform: translateY(-2px); }
+.sl-panel:hover::before { opacity: 1; }
+.sl-panel.is-open {
+  transform: none;
+  background:
+    radial-gradient(520px 200px at 0% 0%, rgba(224,86,127,.09) 0%, rgba(224,86,127,0) 70%),
+    linear-gradient(180deg, rgba(255,255,255,.055) 0%, rgba(255,255,255,.02) 100%);
+  box-shadow: inset 0 0 0 1px rgba(224,86,127,.3), 0 18px 40px -30px rgba(0,0,0,1);
+}
+.sl-panel.is-open::before { opacity: 1; }
+
+.sl-panelhead {
+  display: flex; align-items: center; gap: 15px;
+  width: 100%; padding: 20px clamp(18px, 2.2vw, 26px);
+  border: 0; background: none; cursor: pointer; text-align: left;
+  color: var(--text);
+  transition: background .25s ease;
+}
+.sl-panelhead:hover { background: rgba(224,86,127,.055); }
+.sl-panelhead:focus-visible { outline: 2px solid var(--pink); outline-offset: -3px; }
+
+/* the mark: pink-washed, and filled once the panel is open */
+.sl-panelicon {
+  flex: none; width: 40px; height: 40px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--pink);
+  background: linear-gradient(180deg, rgba(224,86,127,.2) 0%, rgba(224,86,127,.09) 100%);
+  box-shadow: inset 0 0 0 1px rgba(224,86,127,.32), inset 0 1px 0 rgba(255,255,255,.12);
+  transition: background .3s ease, color .3s ease, box-shadow .3s ease, transform .35s cubic-bezier(.34,1.4,.64,1);
+}
+.sl-panelhead:hover .sl-panelicon { transform: scale(1.06) rotate(-3deg); }
+.sl-panel.is-open .sl-panelicon {
+  color: #fff;
+  background: linear-gradient(180deg, #ec6f92 0%, #e0567f 55%, #c8446c 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 6px 16px -8px rgba(224,86,127,.8);
+}
+.sl-panelicon svg { display: block; }
+
+.sl-paneltext { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.sl-paneltitle {
+  font-family: 'Archivo', system-ui, sans-serif;
+  font-size: 16.5px; font-weight: 700; letter-spacing: -.01em; line-height: 1.25;
+}
+.sl-panelline {
+  font-size: 12.5px; line-height: 1.4; color: var(--text-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sl-panel.is-open .sl-panelline { color: var(--text-2); }
+
+.sl-panelmeta {
+  flex: none; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-3);
+  text-align: right; line-height: 1.4;
+}
+@media (max-width: 700px) { .sl-panelmeta { display: none; } }
+
+/* the chevron turns rather than swapping a plus for a minus */
+.sl-panelsign {
+  flex: none; width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-3);
+  transition: transform .35s cubic-bezier(.2,.8,.2,1), color .25s ease, background .25s ease;
+}
+.sl-panelhead:hover .sl-panelsign { color: var(--pink); background: rgba(224,86,127,.12); }
+.sl-panel.is-open .sl-panelsign { transform: rotate(180deg); color: var(--pink); }
+
+.sl-panelbody {
+  min-width: 0;
+  padding: 0 clamp(18px, 2.2vw, 28px) 24px;
+  animation: slopen .32s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes slopen {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .sl-panelbody { animation: none; } }
+
+/* inside a panel the old card frame is gone, so the first heading needs air */
+.sl-panelbody > .sl-scrollbox { max-height: 520px; }
+.sl-panelbody > .sl-scroll { margin-top: 4px; }
+
+/* ==================================================================
+   Tabs
+   ================================================================== */
+/* A recessed track with a lit rim, so the bar reads as a physical control
+   rather than a row of words. */
+.sl-tabs {
+  display: flex; gap: 8px; margin: 26px 0 24px; padding: 8px; border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.34) 0%, rgba(255,255,255,.03) 100%);
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,.55),
+    inset 0 -1px 0 rgba(255,255,255,.07),
+    inset 0 0 0 1px var(--edge),
+    0 10px 26px -20px rgba(0,0,0,.9);
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.sl-tabs::-webkit-scrollbar { display: none; }
+.sl-tab {
+  position: relative; flex: 1 0 auto; white-space: nowrap; background: none; border: 0; border-radius: 999px;
+  padding: 13px 26px; font-family: 'Archivo', sans-serif;
+  font-size: 12.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-3); cursor: pointer;
+  transition: color .25s ease, background .25s ease, box-shadow .25s ease, transform .15s ease;
+}
+.sl-tab:hover { color: var(--text); background: rgba(255,255,255,.05); }
+.sl-tab:active { transform: scale(.96); }
+/* The chosen tab sits proud: a light top edge, a darker underside and a
+   shadow beneath it. */
+.sl-tab[aria-selected="true"] {
+  color: #fff;
+  background: linear-gradient(180deg, #ec6f92 0%, #e0567f 52%, #c8446c 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.42),
+    inset 0 -1px 0 rgba(120,25,55,.5),
+    0 6px 16px -8px rgba(224,86,127,.75),
+    0 1px 0 rgba(0,0,0,.35);
+  text-shadow: 0 1px 1px rgba(120,25,55,.5);
+}
+.sl-tab[aria-selected="true"]::after {
+  content: ""; position: absolute; inset: 1px 1px 50%; border-radius: 999px 999px 40% 40%;
+  background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0));
+  pointer-events: none;
+}
+.sl-tab:focus-visible { outline: 2px solid var(--pink); outline-offset: 3px; }
+.sl-tabcount {
+  display: inline-block; margin-left: 9px; padding: 1px 8px; border-radius: 999px;
+  background: rgba(0,0,0,.22); font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0;
+}
+.sl-tab[aria-selected="false"] .sl-tabcount { background: rgba(255,255,255,.08); }
+
+/* A sweep when the tab changes — across the tab bar itself, not the page.
+   As a fixed layer it washed light over the log, the form and everything
+   else, which is a lot of movement to announce a change of tab. */
+.sl-tabs.is-swept { position: relative; overflow: hidden; }
+.sl-tabs.is-swept::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -30%; width: 26%;
+  pointer-events: none; z-index: 3;
+  background: linear-gradient(100deg,
+    rgba(255,255,255,0) 0%,
+    rgba(240,162,186,.10) 35%,
+    rgba(255,255,255,.16) 50%,
+    rgba(240,162,186,.10) 65%,
+    rgba(255,255,255,0) 100%);
+  transform: skewX(-14deg);
+  animation: sltabsweep .72s cubic-bezier(.3,.7,.4,1) both;
+}
+@keyframes sltabsweep {
+  0%   { left: -30%; opacity: 0; }
+  15%  { opacity: 1; }
+  100% { left: 112%; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .sl-tabs.is-swept::after { display: none; } }
+
+/* the build, beside the mark */
+.sl-build {
+  margin: 5px 0 0;
+  font-size: 10px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* ==================================================================
+   Layout
+   ================================================================== */
+/* Half and half. The log had the wider share, which made the ticket form —
+   the thing you are actually filling in — the cramped one of the two. */
+.sl-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+@media (min-width: 1100px) {
+  /* Nothing follows the scroll. Both columns start at the top of the row and
+     the log is sized to end level with the form — that measurement is done in
+     JavaScript, because the two heights depend on each other and CSS alone
+     can only chase its own tail here. The cap below is what applies until
+     that runs, and if it never does. */
+  .sl-grid { align-items: start; }
+  .sl-grid > * { display: flex; flex-direction: column; }
+  .sl-grid > * > .sl-card { flex: 1 1 auto; min-height: 0; }
+}
+.sl-grid > * { min-width: 0; }
+@media (max-width: 1000px) { .sl-grid { grid-template-columns: 1fr; } }
+
+.sl-duo { display: grid; grid-template-columns: 1fr; gap: 22px; align-items: stretch; }
+
+/* A pair that should end level: both cards take the height of the taller,
+   and any scrolling box inside grows to fill it rather than leaving a gap. */
+.sl-duo-even { align-items: stretch; }
+.sl-duo-even > .sl-card { display: flex; flex-direction: column; height: 100%; }
+.sl-duo-even > .sl-card > .sl-scrollbox { flex: 1 1 auto; max-height: none; min-height: 0; }
+@media (min-width: 1180px) {
+  .sl-duo-even > .sl-card > .sl-scrollbox { max-height: 560px; }
+}
+.sl-duo > * { min-width: 0; }
+.sl-duo > .sl-card + .sl-card { margin-top: 0; }
+.sl-duo > .sl-card { height: 100%; }
+.sl-duo + .sl-duo, .sl-grid + .sl-duo, .sl-stats + .sl-duo, .sl-privrow + .sl-duo, .sl-card + .sl-duo { margin-top: 22px; }
+@media (min-width: 1180px) { .sl-duo { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ==================================================================
+   Fields
+   ================================================================== */
+.sl-field { margin-bottom: 26px; }
+.sl-label { display: block; font-weight: 600; font-size: 15px; margin-bottom: 12px; color: var(--text); }
+.sl-hint { font-weight: 400; color: var(--text-3); font-size: 13.5px; margin-left: 7px; }
+
+.sl-input, .sl-area {
+  display: block; width: 100%; min-width: 0; max-width: 100%;
+  border: 0; border-radius: var(--r-sm);
+  background: rgba(0,0,0,.28); color: var(--text);
+  font-family: inherit; font-size: 16.5px;
+  box-shadow: inset 0 0 0 1px var(--edge);
+  transition: box-shadow .22s ease, background .22s ease;
+}
+.sl-input { height: var(--field-h); padding: 0 18px; }
+.sl-area { padding: 15px 18px; resize: vertical; min-height: 100px; line-height: 1.6; }
+.sl-input:hover, .sl-area:hover { box-shadow: inset 0 0 0 1px var(--edge-lit); }
+.sl-input:focus, .sl-area:focus {
+  outline: none; background: rgba(0,0,0,.38);
+  box-shadow: inset 0 0 0 1.5px var(--pink), 0 0 26px -6px rgba(224,86,127,.45);
+}
+.sl-input::placeholder, .sl-area::placeholder { color: var(--text-3); }
+.sl-mono { font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace; }
+
+/* date & time */
+.sl-app input[type="date"], .sl-app input[type="time"] {
+  -webkit-appearance: none; appearance: none; display: block;
+  width: 100%; min-width: 0; max-width: 100%;
+  height: var(--field-h); min-height: var(--field-h); max-height: var(--field-h);
+  padding: 0 16px; font-size: 16px; line-height: normal; text-align: left;
+  color-scheme: dark;
+}
+.sl-app input[type="date"]::-webkit-date-and-time-value,
+.sl-app input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; padding: 0; }
+.sl-app input[type="date"]::-webkit-calendar-picker-indicator,
+.sl-app input[type="time"]::-webkit-calendar-picker-indicator { opacity: .55; cursor: pointer; filter: invert(1); transition: opacity .18s ease; }
+.sl-app input[type="date"]::-webkit-calendar-picker-indicator:hover,
+.sl-app input[type="time"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+.sl-app input[type="date"]::-webkit-inner-spin-button,
+.sl-app input[type="time"]::-webkit-inner-spin-button { display: none; }
+
+.sl-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.sl-pair > * { min-width: 0; }
+@media (max-width: 420px) { .sl-pair { grid-template-columns: 1fr; } }
+
+.sl-pricebox { position: relative; margin-top: 14px; }
+.sl-cur { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); font-family: 'Archivo', sans-serif; font-size: 20px; font-weight: 700; color: var(--pink); pointer-events: none; }
+.sl-price { padding-left: 38px; font-size: 19px; font-weight: 600; }
+
+/* ==================================================================
+   Toggles
+   ================================================================== */
+/* Options share the row equally and their labels sit dead centre, so a
+   group of choices reads as one control rather than a ragged line. */
+.sl-seg { display: flex; flex-wrap: wrap; gap: 9px; }
+.sl-seg > .sl-opt { flex: 1 1 auto; min-width: 0; }
+.sl-opt {
+  display: inline-flex; align-items: center; justify-content: center; text-align: center;
+  padding: 13px 20px; border: 0; border-radius: 999px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--edge-cool);
+  color: var(--text-2); font-size: 15px; font-weight: 500; cursor: pointer;
+  transition: transform .2s cubic-bezier(.34,1.4,.64,1), box-shadow .3s ease,
+              background-color .3s ease, color .3s ease;
+}
+.sl-opt:hover { color: var(--text); background: rgba(224,86,127,.08); box-shadow: inset 0 0 0 1px var(--edge-lit); transform: translateY(-1px); }
+.sl-opt:active { transform: translateY(0) scale(.96); }
+.sl-opt:focus-visible { outline: 2px solid var(--pink); outline-offset: 3px; }
+
+.sl-opt[aria-pressed="true"] { font-weight: 700; transform: none; animation: slsnap .34s cubic-bezier(.34,1.5,.64,1); }
+.sl-opt[aria-pressed="true"][data-tone="pos"] { background: var(--jade); color: #04140e; }
+.sl-opt[aria-pressed="true"][data-tone="caution"] { background: #cf6076; color: #170608; }
+.sl-opt[aria-pressed="true"][data-tone="c1"] { background: #8e6bbf; color: #ffffff; }
+.sl-opt[aria-pressed="true"][data-tone="c2"] { background: #2e9aa6; color: #04191b; }
+.sl-opt[aria-pressed="true"][data-tone="c3"] { background: #5878b0; color: #ffffff; }
+.sl-opt[aria-pressed="true"][data-tone="c4"] { background: #b4589e; color: #ffffff; }
+.sl-opt[aria-pressed="true"][data-tone="c5"] { background: #6e8ca0; color: #08131a; }
+.sl-opt[aria-pressed="true"][data-tone="neutral"] { background: rgba(255,255,255,.88); color: #0a0a0b; }
+.sl-opt[aria-pressed="true"][data-tone="muted"] { background: rgba(255,255,255,.13); color: var(--text); }
+@keyframes slsnap { 0% { transform: scale(.9); } 60% { transform: scale(1.05); } 100% { transform: scale(1); } }
+.sl-opt[aria-pressed="true"]:hover { transform: translateY(-2px); }
+.sl-opt.sl-mini { padding: 8px 16px; font-size: 13px; }
+
+
+.sl-skip {
+  display: flex; align-items: center; gap: 11px; padding: 16px 18px; border-radius: var(--r-md);
+  background: rgba(224,86,127,.12); box-shadow: inset 0 0 0 1px rgba(224,86,127,.3);
+  color: #ffd9e6; font-size: 14.5px; line-height: 1.55;
+}
+
+.sl-reveal { animation: slrise .38s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes slrise { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+
+/* ==================================================================
+   Fields as dropdowns
+   ================================================================== */
+.sl-pickwrap {
+  position: relative; display: block; width: 100%;
+  border-radius: var(--r-sm);
+  background: rgba(0,0,0,.28);
+  box-shadow: inset 0 0 0 1px var(--edge-cool);
+  transition: box-shadow .25s ease, background .25s ease;
+}
+.sl-pickwrap:hover { box-shadow: inset 0 0 0 1px var(--edge-lit); }
+.sl-pickwrap:focus-within { box-shadow: inset 0 0 0 1.5px var(--pink), 0 0 24px -8px rgba(224,86,127,.5); }
+
+.sl-select {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: var(--field-h);
+  padding: 0 44px 0 20px;
+  border: 0; background: transparent;
+  color: var(--text-3);
+  font-family: inherit; font-size: 16px; font-weight: 500;
+  cursor: pointer; text-align: center; text-align-last: center;
+}
+.sl-select:focus { outline: none; }
+.sl-select option { background: #16141a; color: var(--text); text-align: center; }
+
+/* once chosen, the control carries the colour the pill used to */
+.sl-pickwrap.is-set .sl-select { color: var(--text); font-weight: 600; }
+.sl-pickwrap.is-set { background: rgba(0,0,0,.34); }
+.sl-pickwrap.is-set[data-tone="pos"]     { box-shadow: inset 0 0 0 1.5px var(--jade); }
+.sl-pickwrap.is-set[data-tone="caution"] { box-shadow: inset 0 0 0 1.5px #cf6076; }
+.sl-pickwrap.is-set[data-tone="c1"]      { box-shadow: inset 0 0 0 1.5px #8e6bbf; }
+.sl-pickwrap.is-set[data-tone="c2"]      { box-shadow: inset 0 0 0 1.5px #2e9aa6; }
+.sl-pickwrap.is-set[data-tone="c3"]      { box-shadow: inset 0 0 0 1.5px #5878b0; }
+.sl-pickwrap.is-set[data-tone="c4"]      { box-shadow: inset 0 0 0 1.5px #b4589e; }
+.sl-pickwrap.is-set[data-tone="c5"]      { box-shadow: inset 0 0 0 1.5px #6e8ca0; }
+.sl-pickwrap.is-set[data-tone="muted"]   { box-shadow: inset 0 0 0 1.5px var(--edge-lit); }
+.sl-pickwrap.is-set[data-tone="pos"] .sl-select     { color: var(--jade-lit); }
+.sl-pickwrap.is-set[data-tone="caution"] .sl-select { color: #f0a3ae; }
+.sl-pickwrap.is-set[data-tone="c1"] .sl-select      { color: #c4a9e4; }
+.sl-pickwrap.is-set[data-tone="c2"] .sl-select      { color: #7fd0d9; }
+.sl-pickwrap.is-set[data-tone="c3"] .sl-select      { color: #a3bbe4; }
+.sl-pickwrap.is-set[data-tone="c4"] .sl-select      { color: #e2a4d3; }
+.sl-pickwrap.is-set[data-tone="c5"] .sl-select      { color: #b3c7d4; }
+
+.sl-pickcaret {
+  position: absolute; right: 20px; top: 50%; margin-top: -4px;
+  width: 8px; height: 8px; pointer-events: none;
+  border-right: 2px solid var(--pink); border-bottom: 2px solid var(--pink);
+  transform: rotate(45deg);
+}
+
+/* ==================================================================
+   Dropdown
+   ================================================================== */
+.sl-dd {
+  position: relative;
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 14px;
+  min-height: var(--field-h); padding: 14px 20px; border: 0; border-radius: var(--r-sm);
+  background: rgba(0,0,0,.28); box-shadow: inset 0 0 0 1px var(--edge);
+  color: var(--text); font-size: 15.5px; text-align: left; cursor: pointer;
+  transition: box-shadow .22s ease, transform .18s ease;
+}
+.sl-dd:hover { box-shadow: inset 0 0 0 1px var(--edge-lit); }
+.sl-dd:active { transform: scale(.995); }
+.sl-dd[aria-expanded="true"] { box-shadow: inset 0 0 0 1.5px var(--pink), 0 0 26px -8px rgba(224,86,127,.5); }
+.sl-ddsum { flex: 0 1 auto; min-width: 0; color: var(--text-3); line-height: 1.4; text-align: center; }
+.sl-ddsum.is-set {
+  color: transparent; font-weight: 600;
+  background: var(--pink); background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  animation: slslide 6s ease-in-out infinite;
+}
+@keyframes slslide { 0%, 100% { background-position: 0 0; } 50% { background-position: 100% 0; } }
+.sl-ddmeta {
+  position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
+  display: inline-flex; align-items: center; gap: 10px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--pink); transition: color .3s ease;
+}
+.sl-dd[aria-expanded="true"] .sl-ddmeta { color: var(--pink-lit); }
+.sl-dd[aria-expanded="true"] .sl-caret { border-color: var(--pink-lit); }
+.sl-caret { width: 8px; height: 8px; border-right: 2px solid var(--pink); border-bottom: 2px solid var(--pink); transform: rotate(45deg) translate(-2px,-2px); transition: transform .28s cubic-bezier(.34,1.4,.64,1); }
+.sl-dd[aria-expanded="true"] .sl-caret { transform: rotate(-135deg) translate(-3px,-3px); }
+
+.sl-ddpanel {
+  display: flex; flex-wrap: wrap; gap: 9px; align-items: center;
+  margin-top: 11px; padding: 20px; border-radius: var(--r-md);
+  background: rgba(0,0,0,.24); box-shadow: inset 0 0 0 1px var(--edge);
+}
+.sl-ddopt { display: inline-flex; align-items: center; justify-content: center; gap: 0; }
+.sl-tick { display: none; }
+.sl-ddopt[aria-pressed="true"] .sl-tick { background: rgba(0,0,0,.32); box-shadow: none; animation: sltick .32s cubic-bezier(.34,1.5,.64,1); }
+@keyframes sltick { 0% { transform: scale(.6) rotate(-12deg); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+.sl-ddopt[aria-pressed="true"] .sl-tick::after { content: ""; position: absolute; left: 5px; top: 1.5px; width: 4px; height: 9px; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.sl-ddclear { margin-left: auto; }
+
+/* ==================================================================
+   Actions
+   ================================================================== */
+.sl-actions { display: flex; align-items: center; gap: 12px; margin-top: 30px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,.07); flex-wrap: wrap; }
+.sl-save {
+  position: relative; overflow: hidden;
+  height: 54px; padding: 0 36px; border: 0; border-radius: 999px;
+  background: var(--pink);
+  color: #fff;
+  font-family: 'Archivo', sans-serif; font-size: 13.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 10px 26px -14px rgba(224,86,127,.9);
+  transition: transform .18s cubic-bezier(.34,1.4,.64,1), background .25s ease, box-shadow .3s ease;
+}
+.sl-save:hover {
+  transform: translateY(-1px); background: #ea6c90;
+  box-shadow: 0 14px 32px -14px rgba(224,86,127,1);
+}
+.sl-save:active {
+  transform: translateY(1px) scale(.99); background: var(--pink-deep);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,.5);
+}
+.sl-save:focus-visible { outline: 2px solid var(--pink); outline-offset: 4px; }
+.sl-save:disabled { opacity: .35; cursor: not-allowed; box-shadow: none; transform: none; }
+.sl-save.sl-full { width: 100%; }
+.sl-save::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -40%; width: 28%;
+  background: linear-gradient(100deg, transparent, rgba(255,250,228,.55), transparent);
+  transform: skewX(-18deg); opacity: 0; pointer-events: none;
+}
+.sl-save:hover::after { animation: slsheen .85s cubic-bezier(.3,.7,.4,1); }
+@keyframes slsheen { 0% { left: -40%; opacity: 0; } 20% { opacity: 1; } 100% { left: 115%; opacity: 0; } }
+
+.sl-ghost {
+  height: 54px; padding: 0 22px; border: 0; border-radius: 999px;
+  background: rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px var(--edge);
+  color: var(--text-2); font-size: 12.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+  cursor: pointer; text-decoration: none; display: inline-flex; align-items: center;
+  transition: all .22s ease;
+}
+.sl-ghost:hover { color: var(--text); background: rgba(255,255,255,.1); }
+.sl-ghost:active { transform: scale(.97); }
+
+.sl-note { font-size: 14px; color: var(--rose); margin-left: auto; text-align: right; }
+.sl-note[data-ok="true"] { color: var(--jade); }
+.sl-err { color: var(--rose); font-size: 14.5px; margin: -6px 0 18px; }
+
+/* ==================================================================
+   Statistics
+   ================================================================== */
+.sl-stats {
+  display: grid; grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 0; margin-bottom: 26px;
+  background: none; border: 0;
+  border-top: 1px solid var(--edge); border-bottom: 1px solid var(--edge);
+}
+.sl-stats[data-cols="4"] { grid-template-columns: repeat(4, minmax(0,1fr)); }
+.sl-stats[data-cols="5"] { grid-template-columns: repeat(5, minmax(0,1fr)); }
+.sl-stats[data-cols="6"] { grid-template-columns: repeat(6, minmax(0,1fr)); }
+@media (max-width: 1240px) {
+  .sl-stats[data-cols="5"], .sl-stats[data-cols="6"] { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  /* the strip wraps, so cells on a second row need their own top rule,
+     and the first cell of each row should not carry a left divider */
+  .sl-stats[data-cols="5"] .sl-stat:nth-child(n+4),
+  .sl-stats[data-cols="6"] .sl-stat:nth-child(n+4) { border-top: 1px solid var(--edge); }
+  .sl-stats[data-cols="5"] .sl-stat:nth-child(3n+1)::before,
+  .sl-stats[data-cols="6"] .sl-stat:nth-child(3n+1)::before { display: none; }
+}
+@media (max-width: 700px) {
+  .sl-stats[data-cols="5"], .sl-stats[data-cols="6"] { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .sl-stats[data-cols="5"] .sl-stat:nth-child(n+4),
+  .sl-stats[data-cols="6"] .sl-stat:nth-child(n+4) { border-top: 0; }
+  .sl-stats[data-cols="5"] .sl-stat:nth-child(n+3),
+  .sl-stats[data-cols="6"] .sl-stat:nth-child(n+3) { border-top: 1px solid var(--edge); }
+  .sl-stats[data-cols="5"] .sl-stat:nth-child(3n+1)::before,
+  .sl-stats[data-cols="6"] .sl-stat:nth-child(3n+1)::before { display: block; }
+  .sl-stats[data-cols="5"] .sl-stat:nth-child(2n+1)::before,
+  .sl-stats[data-cols="6"] .sl-stat:nth-child(2n+1)::before { display: none; }
+}
+
+.sl-stat {
+  position: relative; background: none; border-radius: 0;
+  padding: 26px 20px 24px; box-shadow: none;
+  text-align: center;
+  display: flex; flex-direction: column; justify-content: flex-start;
+  transition: background .3s ease;
+}
+/* hairline dividers rather than four separate boxes */
+.sl-stat + .sl-stat::before {
+  content: ""; position: absolute; left: 0; top: 18%; bottom: 18%; width: 1px;
+  background: var(--edge);
+}
+
+
+.sl-stat:hover { background: rgba(224,86,127,.05); }
+.sl-statnum {
+  font-family: 'Archivo', sans-serif; font-size: 38px; font-weight: 700;
+  line-height: 1; letter-spacing: -.035em; color: var(--text);
+}
+.sl-statlab { font-size: 10.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--text-3); margin-top: 12px; }
+.sl-statsub { font-size: 12.5px; color: var(--text-2); margin-top: 6px; font-family: 'IBM Plex Mono', monospace; }
+
+.sl-scope {
+  margin: 0 0 10px;
+  font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-3); text-align: center;
+}
+
+/* ==================================================================
+   Which tour you are reading
+
+   The log and the insights both answer "how is this tour going", so the
+   tour in hand is named once, at the top, and the arrows move between
+   them. It is a destination rather than a filter, so it is given the
+   weight of a heading instead of the weight of a control.
+   ================================================================== */
+.sl-scopebar {
+  display: flex; align-items: center; justify-content: center;
+  flex-wrap: wrap; gap: 10px 18px;
+  margin: 0 0 20px; padding: 12px 16px;
+  border-radius: var(--r-md);
+  background:
+    radial-gradient(520px 180px at 50% 0%, rgba(201,162,39,.08) 0%, rgba(201,162,39,0) 72%),
+    linear-gradient(180deg, rgba(255,255,255,.045) 0%, rgba(255,255,255,.015) 100%);
+  box-shadow: inset 0 0 0 1px var(--edge), inset 0 1px 0 rgba(247,231,184,.1);
+}
+.sl-scopenav { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.sl-scopenow { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.sl-scopelab {
+  font-family: 'Archivo', system-ui, sans-serif;
+  font-size: 17px; font-weight: 700; letter-spacing: -.01em; color: var(--text);
+  text-align: center;
+}
+.sl-scopesub {
+  margin-top: 2px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11.5px;
+  color: var(--text-3); text-align: center;
+}
+.sl-scopeall {
+  appearance: none; cursor: pointer;
+  padding: 7px 15px; border: 0; border-radius: 999px;
+  background: rgba(255,255,255,.045);
+  box-shadow: inset 0 0 0 1px var(--edge);
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  color: var(--text-2);
+  transition: color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+.sl-scopeall:hover { color: var(--text); background: rgba(255,255,255,.08); }
+.sl-scopeall:focus-visible { outline: 2px solid var(--pink); outline-offset: 2px; }
+.sl-scopeall[aria-pressed="true"] {
+  color: #ffd9e4;
+  background: var(--pink-wash);
+  box-shadow: inset 0 0 0 1px rgba(224,86,127,.5);
+}
+
+/* ==================================================================
+   Earlier tours, and the floor's overall figures
+
+   Both are a heading with panels under it: a run of sections the page
+   steps down into, rather than more cards at the same level as the
+   thing they sit beneath.
+   ================================================================== */
+.sl-pastwrap, .sl-overall { display: block; margin-top: 30px; }
+.sl-pasthead {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  margin-bottom: 14px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--edge);
+}
+.sl-pasthead .sl-eyebrow { margin: 0; }
+.sl-pasthead .sl-eyebrow::after { display: none; }
+
+/* A past tour's ticket list gets a window of its own, for the same
+   reason the current one does: forty tickets should not push the next
+   tour's heading off the end of the page. */
+.sl-pastwrap .sl-scrollbox { margin-top: 18px; }
+
+/* Changing a closed tour's dates, in the row it belongs to. */
+.sl-histedit > td { padding: 0 !important; }
+.sl-histform {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 18px 16px;
+  border-radius: var(--r-sm);
+  background: linear-gradient(180deg, rgba(224,86,127,.08) 0%, rgba(224,86,127,.025) 100%);
+  box-shadow: inset 0 0 0 1px rgba(224,86,127,.28);
+}
+.sl-histfields { display: flex; gap: 12px; flex-wrap: wrap; }
+.sl-histfields .sl-field { flex: 1 1 160px; min-width: 0; margin: 0; }
+.sl-histacts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sl-histform .sl-fn { margin: 0; }
+.sl-histbtn { display: block; margin-top: 6px; }
+
+@media (max-width: 560px) {
+  .sl-scopebar { gap: 8px 12px; padding: 11px 12px; }
+  .sl-scopelab { font-size: 15.5px; }
+  .sl-scopenav { gap: 8px; }
+  .sl-arrow { width: 36px; height: 36px; }
+}
+
+/* ==================================================================
+   Ticket stubs
+   ================================================================== */
+.sl-stack { display: flex; flex-direction: column; gap: 12px; }
+
+/* ==================================================================
+   The log window
+
+   The list of tickets scrolls inside its own pane rather than stretching
+   the column, so the form beside it never ends up a short panel floating
+   against a very long page. On one-column layouts the pane is released —
+   a scroller inside a scrolling page is a nuisance on a phone.
+   ================================================================== */
+.sl-logwrap { position: relative; margin-top: 4px; }
+.sl-logscroll {
+  max-height: clamp(420px, calc(100vh - 268px), 940px);
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 4px 12px 4px 4px; margin: -4px -4px -4px -4px;
+  scrollbar-width: thin; scrollbar-color: rgba(224,86,127,.4) transparent;
+}
+.sl-logscroll:focus-visible { outline: 2px solid var(--pink); outline-offset: 2px; border-radius: var(--r-md); }
+.sl-logscroll::-webkit-scrollbar { width: 8px; }
+.sl-logscroll::-webkit-scrollbar-track { background: rgba(255,255,255,.03); border-radius: 999px; }
+.sl-logscroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(224,86,127,.55), rgba(224,86,127,.28));
+  border-radius: 999px;
+}
+.sl-logscroll::-webkit-scrollbar-thumb:hover { background: var(--pink); }
+
+/* a fade at whichever edge still has tickets past it */
+.sl-logwrap::before, .sl-logwrap::after {
+  content: ""; position: absolute; left: 0; right: 10px; height: 44px;
+  pointer-events: none; opacity: 1; transition: opacity .25s ease; z-index: 2;
+}
+.sl-logwrap::before {
+  top: 0; background: linear-gradient(180deg, var(--void) 0%, rgba(10,10,11,0) 100%);
+}
+.sl-logwrap::after {
+  bottom: 0; background: linear-gradient(0deg, var(--void) 0%, rgba(10,10,11,0) 100%);
+}
+.sl-logwrap.at-top::before { opacity: 0; }
+.sl-logwrap.at-end::after { opacity: 0; }
+
+@media (max-width: 1000px) {
+  .sl-logscroll { max-height: none; overflow: visible; padding: 0; margin: 0; }
+  .sl-logwrap::before, .sl-logwrap::after { display: none; }
+}
+
+/* On a two-column screen the log fills whatever height the form gives the
+   row, rather than being capped to the viewport. Nothing is sticky any more,
+   so a pane cut to the screen would leave a tall gap under it; filling the
+   column keeps both sides ending level. This has to sit after the rule it
+   overrides — at equal specificity, the last one wins. */
+@media (min-width: 1100px) {
+  .sl-logwrap { min-height: 0; }
+}
+.sl-stub {
+  position: relative; display: grid; grid-template-columns: 84px minmax(0,1fr);
+  background: var(--ink-1); border: 0; border-radius: var(--r-md);
+  box-shadow: 0 0 0 1px var(--edge), var(--inner); overflow: hidden;
+  transition: transform .3s cubic-bezier(.4,0,.2,1), box-shadow .3s ease;
+  animation: slrise .4s cubic-bezier(.2,.8,.2,1) both;
+}
+.sl-stub:hover { transform: translateY(-3px) scale(1.006); box-shadow: var(--glow-up); }
+.sl-stubside { position: relative; padding: 20px 8px; text-align: center; background: rgba(0,0,0,.24); font-family: 'IBM Plex Mono', monospace; }
+.sl-stubside::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--pink); }
+.sl-stubside::after {
+  content: ""; position: absolute; top: 0; bottom: 0; right: -1px; width: 2px;
+  background-image: radial-gradient(circle at 1px 3px, rgba(224,86,127,.55) 1px, transparent 1.2px);
+  background-size: 2px 9px;
+}
+/* the notches that make it read as a torn stub */
+.sl-stub::before, .sl-stub::after {
+  content: ""; position: absolute; left: 78px; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--void); transform: translateX(-50%);
+  z-index: 2;
+}
+.sl-stub::before { top: -7px; }
+.sl-stub::after { bottom: -7px; }
+.sl-stubno { font-size: 13px; color: var(--pink); letter-spacing: .06em; font-weight: 500; }
+.sl-stubtime { font-size: 11.5px; color: var(--text-3); margin-top: 6px; }
+.sl-stubbody { padding: 18px 22px 19px; min-width: 0; overflow-wrap: anywhere; }
+.sl-stubhead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sl-stubdate { font-family: 'Archivo', sans-serif; font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
+.sl-amount {
+  font-family: 'IBM Plex Mono', monospace; font-size: 17px; font-weight: 600;
+  white-space: nowrap; color: var(--text);
+}
+.sl-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 13px; }
+.sl-chip {
+  font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+  padding: 5px 13px; border-radius: 999px; border: 0;
+  color: var(--text-2); background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1px var(--edge);
+}
+.sl-chip[data-tone="pos"] { color: var(--jade-lit); background: rgba(18,160,106,.13); box-shadow: inset 0 0 0 1px rgba(18,160,106,.32); }
+.sl-chip[data-tone="caution"] { color: var(--rose); background: rgba(255,107,129,.13); box-shadow: inset 0 0 0 1px rgba(255,107,129,.32); }
+.sl-chip[data-tone="c1"] { color: #c4a9e4; background: rgba(142,107,191,.15); box-shadow: inset 0 0 0 1px rgba(142,107,191,.36); }
+.sl-chip[data-tone="c2"] { color: #7fd0d9; background: rgba(46,154,166,.15); box-shadow: inset 0 0 0 1px rgba(46,154,166,.36); }
+.sl-chip[data-tone="c3"] { color: #a3bbe4; background: rgba(88,120,176,.15); box-shadow: inset 0 0 0 1px rgba(88,120,176,.36); }
+.sl-chip[data-tone="c4"] { color: #e2a4d3; background: rgba(180,88,158,.15); box-shadow: inset 0 0 0 1px rgba(180,88,158,.36); }
+.sl-chip[data-tone="c5"] { color: #b3c7d4; background: rgba(110,140,160,.15); box-shadow: inset 0 0 0 1px rgba(110,140,160,.36); }
+.sl-chip[data-tone="c4"] { color: #e2a4d3; background: rgba(180,88,158,.15); box-shadow: inset 0 0 0 1px rgba(180,88,158,.36); }
+.sl-chip[data-tone="muted"] { color: var(--text-3); background: rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px var(--edge); }
+.sl-reason { margin-top: 13px; font-size: 14.5px; color: var(--text-2); padding-left: 14px; border-left: 2px solid rgba(255,107,129,.5); font-style: italic; }
+.sl-pnote { margin: 13px 0 0; padding: 13px 16px; border-radius: var(--r-sm); background: rgba(0,0,0,.26); box-shadow: inset 0 0 0 1px var(--edge); font-size: 14.5px; line-height: 1.6; color: var(--text-2); white-space: pre-wrap; }
+.sl-pnotetag { display: inline-block; margin-right: 10px; padding: 2px 10px; border-radius: 999px; background: var(--pink); color: #fff; font-size: 9.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; vertical-align: 2px; }
+
+.sl-stubtools {
+  position: absolute; top: 12px; right: 14px; display: flex; gap: 4px;
+  opacity: 0; transition: opacity .25s ease;
+}
+.sl-stub:hover .sl-stubtools, .sl-stubtools:focus-within { opacity: 1; }
+.sl-tool {
+  border: 0; border-radius: 999px; padding: 5px 12px; cursor: pointer;
+  background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px var(--edge);
+  color: var(--text-2); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  transition: all .2s ease;
+}
+.sl-tool:hover { background: var(--pink); color: #fff; box-shadow: none; }
+.sl-tool-del:hover { background: var(--rose); color: #fff; }
+.sl-tool:focus-visible { outline: 2px solid var(--pink); outline-offset: 2px; }
+
+/* a test ticket sits back from the real ones */
+.sl-stub.is-test { opacity: .62; }
+.sl-stub.is-test:hover { opacity: .92; }
+.sl-stub.is-test .sl-stubside::before { background: repeating-linear-gradient(180deg, var(--text-3) 0 4px, transparent 4px 8px); }
+
+/* the card knows it is rewriting rather than writing */
+.sl-card.is-editing { box-shadow: 0 0 0 1px rgba(224,86,127,.45), 0 22px 50px -30px rgba(0,0,0,.95); }
+.sl-card.is-editing::before { background: linear-gradient(150deg, rgba(224,86,127,.6) 0%, rgba(224,86,127,.16) 34%, rgba(224,86,127,0) 66%); }
+
+/* a corrected ticket gets a brief mark, not a celebration */
+.sl-stub.is-edited { animation: sledited 1.8s ease-out both; }
+@keyframes sledited {
+  0%   { box-shadow: 0 0 0 1px rgba(224,86,127,.8), 0 0 34px -10px rgba(224,86,127,.7), var(--inner); }
+  70%  { box-shadow: 0 0 0 1px rgba(224,86,127,.5), 0 0 26px -12px rgba(224,86,127,.4), var(--inner); }
+  100% { box-shadow: 0 0 0 1px var(--edge), var(--inner); }
+}
+
+.sl-more {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap; margin-top: 14px;
+}
+.sl-logscroll > .sl-more { margin-bottom: 8px; }
+.sl-morecount { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-3); }
+
+/* ==================================================================
+   Empty, footer, banners
+   ================================================================== */
+.sl-empty { border-radius: var(--r-md); padding: 46px 28px; text-align: center; color: var(--text-2); background: rgba(255,255,255,.03); box-shadow: inset 0 0 0 1px var(--edge); font-size: 15.5px; }
+.sl-empty strong { display: block; font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 22px; color: var(--text); margin-bottom: 10px; letter-spacing: -.01em; }
+.sl-foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 22px; font-size: 13px; color: var(--text-3); }
+.sl-link { background: none; border: 0; padding: 0; color: var(--text-2); font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; border-bottom: 1px solid rgba(224,86,127,.5); transition: all .22s ease; }
+.sl-link:hover { color: var(--pink); border-bottom-color: var(--pink); }
+.sl-privrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: -4px 0 20px; padding: 15px 20px; border-radius: var(--r-md); background: rgba(255,255,255,.035); box-shadow: inset 0 0 0 1px var(--edge); font-size: 14px; color: var(--text-2); }
+/* At the top of a tab it is the switch for every figure below it, so the
+   control reads as a button rather than as another link in a sentence. */
+.sl-privrow .sl-link {
+  flex: none; padding: 7px 15px; border-radius: 999px;
+  background: var(--pink-wash); box-shadow: inset 0 0 0 1px rgba(224,86,127,.4);
+  color: #ffd9e4; text-decoration: none; font-weight: 600;
+}
+.sl-privrow .sl-link:hover { background: rgba(224,86,127,.28); color: #fff; }
+.sl-privfig { font-family: 'IBM Plex Mono', monospace; color: var(--pink); font-weight: 500; }
+.sl-lock { color: var(--text-3); font-size: 13.5px; }
+.sl-mask { letter-spacing: .08em; color: var(--text-3); }
+
+/* ==================================================================
+   Composition
+   ================================================================== */
+.sl-comp + .sl-comp { margin-top: 26px; }
+.sl-complab { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 15px; font-weight: 600; margin-bottom: 11px; }
+.sl-compmeta { font-weight: 400; font-size: 12.5px; color: var(--text-3); font-family: 'IBM Plex Mono', monospace; }
+.sl-bar { display: flex; height: 38px; border-radius: 999px; overflow: hidden; background: rgba(0,0,0,.3); box-shadow: inset 0 0 0 1px var(--edge); }
+.sl-part { display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 700; color: #fff; overflow: hidden; white-space: nowrap; transition: width .9s cubic-bezier(.2,.8,.2,1); }
+.sl-part[data-tone="pos"] { background: var(--jade); color: #fff; }
+.sl-part[data-tone="caution"] { background: var(--rose); color: #fff; }
+.sl-part[data-tone="muted"] { background: rgba(255,255,255,.16); color: var(--text); }
+.sl-swatch[data-tone="pos"] { background: var(--jade); }
+.sl-swatch[data-tone="caution"] { background: var(--rose); }
+.sl-swatch[data-tone="muted"] { background: rgba(255,255,255,.16); }
+.sl-part[data-tone="c1"] { background: #8e6bbf; color: #fff; }
+.sl-part[data-tone="c2"] { background: #2e9aa6; color: #04191b; }
+.sl-part[data-tone="c3"] { background: #5878b0; color: #fff; }
+.sl-part[data-tone="c4"] { background: #b4589e; color: #fff; }
+.sl-part[data-tone="c5"] { background: #6e8ca0; color: #08131a; }
+.sl-swatch[data-tone="c1"] { background: #8e6bbf; }
+.sl-swatch[data-tone="c2"] { background: #2e9aa6; }
+.sl-swatch[data-tone="c3"] { background: #5878b0; }
+.sl-swatch[data-tone="c4"] { background: #b4589e; }
+.sl-swatch[data-tone="c5"] { background: #6e8ca0; }
+.sl-keys { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 13px; font-size: 13.5px; font-weight: 500; color: var(--text-2); }
+.sl-key { display: inline-flex; align-items: center; gap: 8px; }
+.sl-swatch { width: 11px; height: 11px; border-radius: 4px; border: 0; flex: none; }
+
+/* ==================================================================
+   Observations
+   ================================================================== */
+.sl-obs { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 1080px) { .sl-obs { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.sl-obsitem {
+  position: relative; padding: 20px 22px; border-radius: var(--r-md);
+  background: rgba(255,255,255,.035); box-shadow: inset 0 0 0 1px var(--edge);
+  transition: transform .3s cubic-bezier(.4,0,.2,1), box-shadow .3s ease, background .3s ease;
+}
+.sl-obsitem:hover { transform: translateY(-3px); background: rgba(255,255,255,.06); box-shadow: var(--glow-up); }
+.sl-obstag { display: inline-block; margin-bottom: 10px; padding: 3px 11px; border-radius: 999px; background: var(--pink-wash); box-shadow: inset 0 0 0 1px var(--edge); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text); }
+.sl-obshead { margin: 0 0 8px; font-family: 'Archivo', sans-serif; font-size: 19px; font-weight: 700; line-height: 1.3; letter-spacing: -.012em; color: var(--text); }
+.sl-obstext { margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--text-2); }
+
+/* ==================================================================
+   What you could try — the three moves under a finding
+
+   Set apart from the reading above it by a rule and a warmer ground,
+   so the numbers and the suggestions never blur into one another.
+   ================================================================== */
+.sl-moves {
+  margin: 18px 0 0; padding: 16px 18px 15px;
+  border-radius: var(--r-sm);
+  background: linear-gradient(180deg, rgba(224,86,127,.1) 0%, rgba(224,86,127,.035) 100%);
+  box-shadow: inset 0 0 0 1px rgba(224,86,127,.24);
+}
+.sl-moveslab {
+  margin: 0 0 10px; font-family: 'Archivo', system-ui, sans-serif;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--pink);
+}
+.sl-moveslist { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.sl-moveslist li {
+  position: relative; padding-left: 20px;
+  font-size: 13.5px; line-height: 1.55; color: var(--text-2);
+}
+/* a small filled lozenge rather than a bullet glyph, so it sits on the baseline */
+.sl-moveslist li::before {
+  content: ""; position: absolute; left: 2px; top: .58em;
+  width: 7px; height: 3px; border-radius: 999px;
+  background: linear-gradient(90deg, var(--pink), rgba(224,86,127,.4));
+}
+
+
+/* ==================================================================
+   Correlations — one thing measured against another
+   ================================================================== */
+.sl-corr { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.sl-corritem {
+  padding: 20px 22px; border-radius: var(--r-md);
+  background: rgba(255,255,255,.035); box-shadow: inset 0 0 0 1px var(--edge);
+  transition: background .3s ease, box-shadow .3s ease;
+}
+.sl-corritem:hover { background: rgba(255,255,255,.06); box-shadow: var(--glow-up); }
+
+.sl-vs { margin: 14px 0 12px; display: flex; flex-direction: column; gap: 9px; }
+.sl-vsrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(90px, 2fr) auto; gap: 14px; align-items: center; }
+.sl-vsname { font-size: 13.5px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sl-vsbar { display: block; height: 10px; border-radius: 999px; background: rgba(0,0,0,.32); overflow: hidden; box-shadow: inset 0 0 0 1px var(--edge); }
+.sl-vsfill { display: block; height: 100%; border-radius: 999px; transition: width .9s cubic-bezier(.2,.8,.2,1); }
+.sl-vshigh { background: var(--jade); }
+.sl-vslow  { background: var(--rose); }
+.sl-vsval { font-family: 'IBM Plex Mono', monospace; font-size: 13.5px; font-weight: 600; text-align: right; white-space: nowrap; min-width: 62px; }
+
+@media (max-width: 560px) {
+  .sl-vsrow { grid-template-columns: minmax(0, 1fr) auto; }
+  .sl-vsbar { grid-column: 1 / -1; order: 3; }
+}
+
+/* the card that leads the page carries a little more weight */
+.sl-feature {
+  background: linear-gradient(180deg, rgba(224,86,127,.07) 0%, rgba(255,255,255,.02) 100%);
+}
+.sl-feature::before {
+  background: linear-gradient(150deg, rgba(240,162,186,.55) 0%, rgba(224,86,127,.18) 32%, rgba(224,86,127,0) 64%);
+}
+.sl-feature .sl-statnum { font-size: 42px; }
+@media (max-width: 700px) { .sl-feature .sl-statnum { font-size: 32px; } }
+
+/* ==================================================================
+   A box that scrolls, so ten findings do not push the page down
+   ================================================================== */
+.sl-scrollbox {
+  position: relative;
+  max-height: 460px; overflow-y: auto; overscroll-behavior: contain;
+  padding-right: 6px; margin-right: -6px;
+  scrollbar-width: thin; scrollbar-color: var(--edge-lit) transparent;
+}
+.sl-scrollbox::-webkit-scrollbar { width: 7px; }
+.sl-scrollbox::-webkit-scrollbar-thumb { background: var(--edge-lit); border-radius: 999px; }
+.sl-scrollbox::-webkit-scrollbar-track { background: transparent; }
+@media (max-width: 700px) { .sl-scrollbox { max-height: 400px; } }
+
+/* ==================================================================
+   Insight carousel
+   One finding at a time, moved with the arrows. The track slides on a
+   transform, so changing insight never rebuilds or jumps the page.
+   ================================================================== */
+.sl-carousel { position: relative; }
+/* the panel around a personal carousel picks up the same warmth */
+.sl-panel.is-open .sl-carousel { --carousel-accent: var(--pink); }
+.sl-slides { overflow: hidden; margin: 0 -2px; padding: 2px; }
+.sl-slidetrack {
+  display: flex; align-items: stretch;
+  transition: transform .55s cubic-bezier(.3,.8,.25,1);
+  will-change: transform;
+}
+.sl-slide { flex: 0 0 100%; min-width: 0; padding: 0 2px; box-sizing: border-box; }
+.sl-slide > .sl-obsitem, .sl-slide > .sl-corritem, .sl-slide > .sl-gislide,
+.sl-slide > .sl-coachitem { height: 100%; }
+
+/* A finding on a slide gets the room to be the thing you are looking at:
+   a pink bloom from the top-left corner, a pink rail down the leading edge,
+   and no hover-lift to fight the track. */
+.sl-slide .sl-obsitem, .sl-slide .sl-corritem {
+  position: relative; overflow: hidden;
+  padding: 26px 28px 24px 30px;
+  background:
+    radial-gradient(600px 260px at 0% 0%, rgba(224,86,127,.14) 0%, rgba(224,86,127,0) 68%),
+    linear-gradient(180deg, rgba(255,255,255,.055) 0%, rgba(255,255,255,.022) 100%);
+  box-shadow: inset 0 0 0 1px rgba(224,86,127,.22), inset 0 1px 0 rgba(247,231,184,.14);
+}
+.sl-slide .sl-obsitem::before, .sl-slide .sl-corritem::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: linear-gradient(180deg, var(--pink) 0%, rgba(224,86,127,.25) 55%, rgba(201,162,39,.35) 100%);
+}
+.sl-slide .sl-obsitem:hover, .sl-slide .sl-corritem:hover {
+  transform: none;
+  background:
+    radial-gradient(600px 260px at 0% 0%, rgba(224,86,127,.19) 0%, rgba(224,86,127,0) 68%),
+    linear-gradient(180deg, rgba(255,255,255,.07) 0%, rgba(255,255,255,.028) 100%);
+  box-shadow: inset 0 0 0 1px rgba(224,86,127,.36), inset 0 1px 0 rgba(247,231,184,.2);
+}
+/* the tag reads as a label on a pink card, not another grey chip */
+.sl-slide .sl-obstag {
+  background: linear-gradient(180deg, rgba(224,86,127,.34) 0%, rgba(224,86,127,.2) 100%);
+  box-shadow: inset 0 0 0 1px rgba(224,86,127,.5), inset 0 1px 0 rgba(255,255,255,.16);
+  color: #ffd9e4;
+}
+/* the headline carries the pink through into the type */
+.sl-slide .sl-obshead { font-size: 20.5px; color: #fff; }
+
+/* A group finding as a slide carries the same frame as the personal ones,
+   rather than the hairline-row look it had in the old list.
+
+   The element carries .sl-giitem as well, and that rule is written further
+   down this file — so on a bare .sl-gislide the list padding (15px 0) won
+   on source order and the text landed flush on the card's gold edge. Both
+   classes are named here so the slide's own padding cannot be undone by
+   where the two rules happen to sit. */
+.sl-giitem.sl-gislide {
+  position: relative; overflow: hidden;
+  padding: 26px 28px 24px 30px; border-bottom: 0; border-radius: var(--r-md);
+  background:
+    radial-gradient(600px 260px at 0% 0%, rgba(201,162,39,.13) 0%, rgba(201,162,39,0) 68%),
+    linear-gradient(180deg, rgba(255,255,255,.055) 0%, rgba(255,255,255,.022) 100%);
+  box-shadow: inset 0 0 0 1px rgba(201,162,39,.22), inset 0 1px 0 rgba(247,231,184,.16);
+}
+.sl-gislide::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: linear-gradient(180deg, var(--gold-lit) 0%, rgba(201,162,39,.3) 55%, rgba(224,86,127,.35) 100%);
+}
+.sl-gislide .sl-gilabel { color: var(--gold-lit); }
+.sl-gislide .sl-givalue { font-size: 24px; margin-top: 8px; }
+.sl-gislide .sl-ginote { margin-top: 7px; font-size: 14px; line-height: 1.6; }
+
+.sl-slidenav {
+  display: flex; align-items: center; gap: 14px;
+  margin-top: 16px; padding-top: 14px;
+  border-top: 1px solid var(--edge);
+}
+.sl-arrow {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; flex: none; border: 0; border-radius: 50%; cursor: pointer;
+  color: var(--gold-lit);
+  background: linear-gradient(180deg, rgba(255,255,255,.07) 0%, rgba(255,255,255,.02) 100%);
+  box-shadow: inset 0 0 0 1px var(--edge), inset 0 1px 0 rgba(247,231,184,.16), 0 8px 18px -12px rgba(0,0,0,.9);
+  transition: color .2s ease, box-shadow .2s ease, background .2s ease, transform .12s ease;
+}
+.sl-arrow:hover:not(:disabled) {
+  color: var(--gold-hi);
+  background: linear-gradient(180deg, rgba(255,255,255,.1) 0%, rgba(255,255,255,.03) 100%);
+  box-shadow: inset 0 0 0 1px rgba(227,195,116,.5), inset 0 1px 0 rgba(247,231,184,.28), 0 10px 22px -12px rgba(0,0,0,1);
+}
+.sl-arrow:active:not(:disabled) { transform: scale(.92); }
+.sl-arrow:disabled { opacity: .3; cursor: default; }
+.sl-arrow:focus-visible { outline: 2px solid var(--pink); outline-offset: 3px; }
+.sl-arrow svg { display: block; }
+
+.sl-slidecount {
+  min-width: 58px; text-align: center;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12.5px; letter-spacing: .04em; color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.sl-slidecount strong { color: var(--text); font-weight: 600; }
+
+.sl-dotnav { display: flex; align-items: center; gap: 7px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+.sl-dot2 {
+  width: 7px; height: 7px; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+  background: rgba(255,255,255,.16);
+  transition: background .25s ease, transform .25s ease, box-shadow .25s ease;
+}
+.sl-dot2:hover { background: rgba(255,255,255,.32); }
+.sl-dot2.is-on {
+  background: var(--gold-lit);
+  box-shadow: 0 0 10px 1px rgba(227,195,116,.45);
+  transform: scale(1.25);
+}
+@media (max-width: 560px) {
+  .sl-dotnav { display: none; }
+  .sl-slidenav { justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) { .sl-slidetrack { transition: none; } }
+
+/* the method behind a finding, revealed rather than floated, so the
+   scrolling box never clips it */
+.sl-explains { cursor: help; }
+.sl-how {
+  margin: 0; overflow: hidden;
+  max-height: 0; opacity: 0;
+  font-size: 13px; line-height: 1.6; color: var(--text-2);
+  transition: max-height .4s cubic-bezier(.2,.8,.2,1), opacity .3s ease, margin .4s ease;
+}
+.sl-explains:hover .sl-how,
+.sl-explains:focus .sl-how,
+.sl-explains:focus-within .sl-how {
+  max-height: 340px; opacity: 1; margin-top: 12px;
+}
+.sl-explains:focus { outline: 2px solid var(--pink); outline-offset: 3px; }
+.sl-howlab {
+  display: block; margin-bottom: 5px;
+  font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--pink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sl-how { transition: none; }
+}
+
+/* ==================================================================
+   Group insights — compact, one line each
+   ================================================================== */
+.sl-gi {
+  display: grid; grid-template-columns: 1fr; gap: 0;
+  border-top: 1px solid var(--edge);
+}
+@media (min-width: 780px)  { .sl-gi { grid-template-columns: repeat(2, minmax(0,1fr)); column-gap: 32px; } }
+@media (min-width: 1320px) { .sl-gi { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+
+.sl-giitem {
+  display: block; padding: 15px 0 14px;
+  border-bottom: 1px solid var(--edge);
+}
+.sl-gilabel {
+  display: block; font-size: 10.5px; font-weight: 700;
+  letter-spacing: .09em; text-transform: uppercase; color: var(--pink);
+}
+.sl-givalue {
+  display: block; margin-top: 6px;
+  font-family: 'Archivo', system-ui, sans-serif;
+  font-size: 19px; font-weight: 700; letter-spacing: -.015em; color: var(--text);
+}
+.sl-ginote { display: block; margin-top: 4px; font-size: 13px; line-height: 1.5; color: var(--text-2); }
+
+@media (max-width: 560px) {
+  .sl-givalue { font-size: 17px; }
+  .sl-ginote { font-size: 12.5px; }
+}
+
+/* ==================================================================
+   Party ranking
+   ================================================================== */
+.sl-ptlist { display: flex; flex-direction: column; gap: 20px; }
+.sl-ptrow { display: block; }
+.sl-pthead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+.sl-ptname { font-size: 15.5px; font-weight: 600; }
+.sl-ptcount { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.sl-ptbar { height: 12px; border-radius: 999px; background: rgba(0,0,0,.3); overflow: hidden; box-shadow: inset 0 0 0 1px var(--edge); }
+.sl-ptfill { height: 100%; border-radius: 999px; background: var(--pink); box-shadow: 0 0 18px -4px rgba(224,86,127,.9); transition: width .9s cubic-bezier(.2,.8,.2,1); }
+.sl-ptrates { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 9px; font-size: 13.5px; color: var(--text-3); }
+.sl-ptrates strong { font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: var(--text); margin-left: 6px; }
+.sl-ptrates > span:last-child { margin-left: auto; font-family: 'IBM Plex Mono', monospace; color: var(--pink); font-weight: 500; }
+
+/* ==================================================================
+   Chart
+   ================================================================== */
+.sl-chart { display: flex; align-items: flex-end; gap: 10px; height: 260px; padding-top: 30px; }
+.sl-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; position: relative; }
+.sl-colrate { position: absolute; top: -24px; left: 0; right: 0; text-align: center; font-size: 12px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; color: var(--text-2); }
+.sl-coltrack { display: flex; flex-direction: column; justify-content: flex-end; height: 100%; border-radius: 10px 10px 4px 4px; overflow: hidden; background: rgba(255,255,255,.035); }
+.sl-colpart { width: 100%; transition: height .9s cubic-bezier(.2,.8,.2,1); }
+.sl-colpart[data-part="noshow"] {
+  background: #d4455f;
+  background-image: repeating-linear-gradient(135deg,
+    rgba(0,0,0,.22) 0 5px, rgba(0,0,0,0) 5px 10px);
+}
+.sl-colpart[data-part="showed"]   { background: var(--jade); }
+.sl-colpart[data-part="unmarked"] { background: rgba(255,255,255,.1); }
+.sl-col:hover .sl-coltrack { filter: brightness(1.22); }
+
+/* the week still running reads as unfinished rather than as a short week */
+.sl-col.is-current .sl-coltrack { opacity: .72; }
+.sl-col.is-current .sl-coltrack::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--edge-lit);
+}
+.sl-col.is-current { position: relative; }
+.sl-col.is-current .sl-colrate { color: var(--pink-lit); }
+.sl-xaxis { display: flex; gap: 7px; margin-top: 12px; }
+.sl-xlab { flex: 1 1 0; min-width: 0; text-align: center; font-size: 11px; font-weight: 500; color: var(--text-3); font-family: 'IBM Plex Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ==================================================================
+   Tables — rows, not a grid of boxes
+   ================================================================== */
+.sl-scroll { overflow-x: auto; margin: 0 -8px; padding: 0 8px; -webkit-overflow-scrolling: touch; }
+.sl-table { width: 100%; border-collapse: separate; border-spacing: 0 6px; font-size: 14.5px; min-width: 520px; color: var(--text); }
+.sl-table th { text-align: right; font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--text-3); font-weight: 700; padding: 0 14px 6px; white-space: nowrap; }
+.sl-table th:first-child, .sl-table td:first-child { text-align: left; }
+.sl-table td {
+  text-align: right; padding: 15px 14px;
+  background: rgba(255,255,255,.03);
+  font-family: 'IBM Plex Mono', monospace; font-size: 14px;
+  color: var(--text); transition: background .22s ease;
+}
+.sl-table td:first-child { border-radius: var(--r-sm) 0 0 var(--r-sm); font-family: 'Manrope', sans-serif; font-weight: 500; }
+.sl-table td:last-child { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.sl-table tbody tr:hover td { background: rgba(255,255,255,.07); }
+.sl-dim { color: var(--text-3); }
+.sl-pos { color: var(--jade-lit); }
+.sl-neg { color: var(--rose); }
+.sl-up, .sl-pos, .sl-delta.sl-up { color: var(--jade-lit); }
+.sl-down, .sl-neg, .sl-delta.sl-down { color: var(--rose); }
+.sl-sublab { display: block; font-family: 'Manrope', sans-serif; font-size: 12.5px; font-weight: 400; color: var(--text-3); }
+.sl-track { height: 6px; border-radius: 999px; background: rgba(0,0,0,.3); margin-top: 8px; overflow: hidden; }
+.sl-fill { height: 100%; border-radius: 999px; background: var(--jade); transition: width .9s cubic-bezier(.2,.8,.2,1); }
+.sl-fn { font-size: 13.5px; color: var(--text-3); margin: 18px 0 0; line-height: 1.6; }
+
+/* week review */
+/* nowrap keeps a date range from breaking across two lines, which is what
+   this mostly holds — but it must still be allowed to be narrower than the
+   phone, or a longer line pushes the whole page sideways. */
+.sl-weekrange {
+  font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--pink);
+  letter-spacing: .04em; white-space: nowrap;
+  max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
+@media (max-width: 620px) { .sl-weekrange { white-space: normal; text-align: right; } }
+.sl-delta { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.sl-up { color: var(--jade); }
+.sl-down { color: var(--rose); }
+.sl-flat { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--text-3); }
+
+/* ==================================================================
+   Sign in
+   ================================================================== */
+.sl-authwrap { max-width: 500px; margin: 0 auto; }
+.sl-authhead { text-align: center; margin-bottom: 34px; }
+.sl-authhead .sl-logo { flex-direction: column; gap: 18px; align-items: center; }
+.sl-authhead .sl-wordmark { font-size: 44px; }
+.sl-authhead .sl-sub { margin: 16px auto 0; max-width: 40ch; }
+.sl-authwrap .sl-card { padding: 36px clamp(20px, 4vw, 34px) 32px; }
+
+.sl-switch { display: flex; gap: 4px; padding: 5px; border-radius: 999px; background: rgba(0,0,0,.3); box-shadow: inset 0 0 0 1px var(--edge); margin-bottom: 30px; }
+.sl-switchlink { flex: 1; padding: 13px 8px; border-radius: 999px; text-align: center; font-family: 'Archivo', sans-serif; font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); text-decoration: none; transition: all .25s ease; }
+.sl-switchlink[aria-selected="true"] { background: var(--pink); color: #fff; box-shadow: none; }
+.sl-switchlink:hover { color: var(--text); }
+
+.sl-warn { border-radius: var(--r-md); background: rgba(224,86,127,.1); box-shadow: inset 0 0 0 1px rgba(224,86,127,.28); color: #f2d49a; padding: 17px 19px; font-size: 13.5px; line-height: 1.6; margin-top: 24px; }
+.sl-warn strong { display: block; margin-bottom: 5px; color: var(--pink); }
+.sl-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.sl-busy { opacity: .45; pointer-events: none; }
+
+/* WordPress login form */
+.sl-app #loginform p { margin: 0 0 22px; }
+.sl-app #loginform label { display: block; font-weight: 600; font-size: 15px; margin-bottom: 12px; color: var(--text); }
+.sl-app #loginform input[type="text"], .sl-app #loginform input[type="password"] {
+  width: 100%; height: var(--field-h); padding: 0 18px; border: 0; border-radius: var(--r-sm);
+  background: rgba(0,0,0,.3); color: var(--text); font-family: inherit; font-size: 16.5px;
+  box-shadow: inset 0 0 0 1px var(--edge);
+}
+.sl-app #loginform input[type="text"]:focus, .sl-app #loginform input[type="password"]:focus {
+  outline: none; box-shadow: inset 0 0 0 1.5px var(--pink), 0 0 26px -6px rgba(224,86,127,.45);
+}
+.sl-app #loginform .forgetmenot { font-size: 14px; color: var(--text-2); }
+.sl-app #loginform .forgetmenot input { accent-color: var(--pink); margin-right: 8px; }
+.sl-app #loginform .submit input, .sl-app #wp-submit {
+  width: 100%; height: 54px; border: 0; border-radius: 999px; background: var(--pink); color: #fff;
+  font-family: 'Archivo', sans-serif; font-size: 13.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  cursor: pointer; box-shadow: none;
+  transition: transform .18s ease, background .25s ease;
+}
+.sl-app #loginform .submit input:hover, .sl-app #wp-submit:hover { transform: translateY(-1px); background: var(--pink); }
+
+/* ==================================================================
+   Narrow screens
+   ================================================================== */
+@media (max-width: 780px) {
+  .sl-chart { height: 210px; gap: 6px; }
+  .sl-app { padding: 26px 14px 72px; font-size: 16.5px; }
+  .sl-card { padding: 24px 18px 22px; border-radius: 22px; }
+  .sl-authwrap { max-width: 100%; }
+  .sl-who { width: 100%; justify-content: flex-start; }
+  .sl-wordmark { font-size: 26px; }
+  .sl-authhead .sl-wordmark { font-size: 34px; }
+  .sl-stats, .sl-stats[data-cols="4"] { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+  .sl-statnum { font-size: 28px; }
+  /* Four tabs rather than three: the row scrolls sideways on a phone, so
+     the padding comes down and a tab is allowed to be narrower than its
+     share of the row rather than forcing the whole bar wider. */
+  .sl-tab { padding: 12px 14px; font-size: 11px; letter-spacing: .07em; }
+  .sl-chart { height: 180px; }
+  .sl-stub { grid-template-columns: 66px minmax(0,1fr); }
+  .sl-actions .sl-save, .sl-actions .sl-ghost { flex: 1 1 auto; justify-content: center; }
+  .sl-note { width: 100%; margin-left: 0; text-align: left; }
+  .sl-stubtools { opacity: 1; }
+}
+
+@media (max-width: 460px) {
+  .sl-app { padding: 22px 12px 64px; }
+  .sl-card { padding: 22px 15px 20px; }
+  .sl-opt { padding: 11px 16px; font-size: 14.5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-app *, .sl-app *::before, .sl-app *::after { animation: none !important; transition: none !important; }
+  /* The seal must still be finished, not caught part-drawn. */
+  .sl-logomark .sl-lm-rim, .sl-logomark .sl-lm-cut, .sl-logomark .sl-lm-letter { stroke-dashoffset: 0 !important; }
+  .sl-logomark .sl-lm-rimlite, .sl-logomark .sl-lm-line, .sl-logomark .sl-lm-spec { opacity: 1 !important; }
+  .sl-logomark .sl-lm-shine { opacity: 0 !important; }
+  .sl-halo { display: none !important; }
+  .sl-opt:hover, .sl-save:hover, .sl-stub:hover, .sl-stat:hover, .sl-obsitem:hover { transform: none !important; }
+}
+
+/* ==================================================================
+   The bug mark
+
+   Quiet enough to forget, findable the moment something breaks. It sits
+   over the page rather than in the layout, so it never moves anything,
+   and it stays clear of the celebration canvas above it.
+   ================================================================== */
+.sl-bug {
+  position: fixed; right: 22px; bottom: 22px; z-index: 9998;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 12px;
+  font-family: 'Manrope', system-ui, sans-serif;
+}
+
+.sl-bugbtn {
+  display: flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px; border: 0; border-radius: 50%; cursor: pointer;
+  color: rgba(255,255,255,.5);
+  background: rgba(20,20,22,.55);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  opacity: .42;
+  transition: opacity .3s ease, color .3s ease, box-shadow .3s ease, transform .25s cubic-bezier(.34,1.4,.64,1), background .3s ease;
+}
+.sl-bugbtn:hover, .sl-bug.is-open .sl-bugbtn {
+  opacity: 1; color: var(--pink); transform: translateY(-2px);
+  background: rgba(28,18,22,.8);
+  box-shadow: inset 0 0 0 1px rgba(224,86,127,.45), 0 10px 24px -12px rgba(0,0,0,1);
+}
+.sl-bugbtn:focus-visible { opacity: 1; outline: 2px solid var(--pink); outline-offset: 3px; }
+.sl-bugbtn svg { display: block; }
+.sl-bug.is-open .sl-bugbtn { transform: rotate(8deg); }
+
+.sl-bugpanel {
+  order: -1; width: min(340px, calc(100vw - 44px));
+  padding: 18px 18px 16px; border-radius: var(--r-md);
+  background:
+    radial-gradient(420px 200px at 100% 0%, rgba(224,86,127,.13) 0%, rgba(224,86,127,0) 70%),
+    linear-gradient(180deg, #17171a 0%, #101012 100%);
+  box-shadow: inset 0 0 0 1px rgba(224,86,127,.28), inset 0 1px 0 rgba(255,255,255,.08),
+    0 26px 60px -28px rgba(0,0,0,1);
+  animation: slbugin .3s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes slbugin {
+  from { opacity: 0; transform: translateY(10px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+.sl-bughead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.sl-bughead p {
+  margin: 0; font-family: 'Archivo', system-ui, sans-serif;
+  font-size: 15.5px; font-weight: 700; letter-spacing: -.01em; color: var(--text);
+}
+.sl-bugclose {
+  width: 26px; height: 26px; flex: none; border: 0; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-3); background: rgba(255,255,255,.05);
+  transition: color .2s ease, background .2s ease;
+}
+.sl-bugclose:hover { color: var(--text); background: rgba(255,255,255,.1); }
+
+.sl-bugintro { margin: 0 0 12px; font-size: 12.5px; line-height: 1.5; color: var(--text-3); }
+
+.sl-buginput {
+  display: block; width: 100%; box-sizing: border-box;
+  padding: 12px 13px; border: 0; border-radius: var(--r-sm);
+  font-family: inherit; font-size: 14px; line-height: 1.5; color: var(--text);
+  background: rgba(0,0,0,.35);
+  box-shadow: inset 0 0 0 1px var(--edge);
+  resize: vertical; min-height: 88px;
+  transition: box-shadow .25s ease;
+}
+.sl-buginput::placeholder { color: rgba(255,255,255,.26); }
+.sl-buginput:focus { outline: 0; box-shadow: inset 0 0 0 1px rgba(224,86,127,.6); }
+
+.sl-bugfoot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 11px; }
+.sl-bugcount { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-3); }
+.sl-bugcount.is-low { color: var(--pink); }
+
+.sl-bugsend {
+  border: 0; border-radius: 999px; cursor: pointer;
+  padding: 10px 18px; font-family: 'Archivo', sans-serif;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff;
+  background: linear-gradient(180deg, #ec6f92 0%, #e0567f 52%, #c8446c 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 8px 18px -10px rgba(224,86,127,.8);
+  transition: transform .15s ease, box-shadow .25s ease, opacity .25s ease;
+}
+.sl-bugsend:hover:not(:disabled) { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 12px 24px -10px rgba(224,86,127,.95); }
+.sl-bugsend:active:not(:disabled) { transform: scale(.97); }
+.sl-bugsend:disabled { opacity: .55; cursor: default; }
+
+.sl-bugnote { margin: 12px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-3); }
+
+/* an empty send shakes rather than scolding */
+.sl-bug.is-nudge .sl-bugpanel { animation: slbugnudge .45s ease both; }
+@keyframes slbugnudge {
+  0%, 100% { transform: none; }
+  25% { transform: translateX(-5px); }
+  60% { transform: translateX(4px); }
+}
+
+.sl-bugdone {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 22px 8px 16px; text-align: center; color: var(--jade-lit);
+}
+.sl-bugdone p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-2); }
+.sl-bugdone strong { color: var(--text); }
+
+@media (max-width: 600px) {
+  .sl-bug { right: 14px; bottom: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sl-bugpanel, .sl-bug.is-nudge .sl-bugpanel { animation: none; }
+  .sl-bugbtn:hover, .sl-bug.is-open .sl-bugbtn { transform: none; }
+}
+
+/* ==================================================================
+   The admin panel behind the logo
+
+   A sheet over the app rather than a page of its own, so opening it
+   never loses what the log was showing underneath.
+   ================================================================== */
+.sl-logobtn {
+  display: block; padding: 0; border: 0; background: none; cursor: pointer;
+  border-radius: 50%; line-height: 0;
+  transition: transform .3s cubic-bezier(.34,1.4,.64,1), filter .3s ease;
+}
+.sl-logobtn:hover { transform: scale(1.06); filter: drop-shadow(0 0 12px rgba(227,195,116,.45)); }
+.sl-logobtn:active { transform: scale(.96); }
+.sl-logobtn:focus-visible { outline: 2px solid var(--pink); outline-offset: 4px; }
+
+.sl-admin {
+  position: fixed; inset: 0; z-index: 10000; display: none;
+  align-items: flex-start; justify-content: center;
+  padding: clamp(14px, 4vh, 48px) 16px;
+  background: rgba(4,4,5,.78);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.sl-admin.is-on { display: flex; animation: slfadein .25s ease both; }
+@keyframes slfadein { from { opacity: 0; } to { opacity: 1; } }
+
+.sl-adsheet {
+  width: min(940px, 100%);
+  padding: clamp(20px, 3vw, 30px);
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(700px 300px at 0% 0%, rgba(224,86,127,.1) 0%, rgba(224,86,127,0) 70%),
+    linear-gradient(180deg, #151517 0%, #0d0d0f 100%);
+  box-shadow: inset 0 0 0 1px rgba(224,86,127,.24), inset 0 1px 0 rgba(255,255,255,.07),
+    0 40px 90px -40px rgba(0,0,0,1);
+  animation: slrise .3s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes slrise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+.sl-adhead {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding-bottom: 18px; margin-bottom: 20px; border-bottom: 1px solid var(--edge);
+}
+.sl-adtitle { display: flex; align-items: center; gap: 13px; }
+.sl-adtitle p {
+  margin: 0; font-family: 'Archivo', sans-serif; font-size: 18px; font-weight: 700;
+  letter-spacing: -.01em; color: var(--text);
+}
+.sl-adtitle span { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-3); }
+.sl-adhactions { display: flex; gap: 10px; }
+
+/* --- the gate --- */
+.sl-adgate { max-width: 380px; margin: 10px auto 18px; text-align: left; }
+.sl-adgate h2 {
+  margin: 4px 0 8px; font-family: 'Archivo', sans-serif; font-size: 25px;
+  font-weight: 700; letter-spacing: -.02em; color: var(--text);
+}
+.sl-adgate > p { margin: 0 0 20px; font-size: 14px; line-height: 1.6; color: var(--text-2); }
+.sl-adlabel {
+  display: block; margin-bottom: 14px;
+  font-size: 12px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.sl-adfield {
+  display: block; width: 100%; box-sizing: border-box; margin-top: 7px;
+  padding: 13px 15px; border: 0; border-radius: var(--r-sm);
+  font-family: inherit; font-size: 15px; color: var(--text);
+  background: rgba(0,0,0,.4); box-shadow: inset 0 0 0 1px var(--edge);
+  letter-spacing: normal; text-transform: none; font-weight: 400;
+  transition: box-shadow .25s ease;
+}
+.sl-adfield:focus { outline: 0; box-shadow: inset 0 0 0 1px rgba(224,86,127,.6); }
+.sl-adgo {
+  width: 100%; margin-top: 6px; padding: 14px 20px; border: 0; border-radius: 999px; cursor: pointer;
+  font-family: 'Archivo', sans-serif; font-size: 12.5px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase; color: #fff;
+  background: linear-gradient(180deg, #ec6f92 0%, #e0567f 52%, #c8446c 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 10px 22px -10px rgba(224,86,127,.85);
+  transition: transform .15s ease, opacity .25s ease;
+}
+.sl-adgo:hover:not(:disabled) { transform: translateY(-1px); }
+.sl-adgo:disabled { opacity: .55; cursor: default; }
+.sl-aderr {
+  margin: 0 0 14px; padding: 11px 14px; border-radius: var(--r-sm);
+  background: rgba(224,86,127,.12); box-shadow: inset 0 0 0 1px rgba(224,86,127,.35);
+  font-size: 13.5px; color: #ffc2d3;
+}
+.sl-adfine { margin: 16px 0 0; font-size: 11.5px; line-height: 1.55; color: var(--text-3); }
+
+/* --- inside --- */
+.sl-adstats {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-radius: var(--r-md); background: rgba(255,255,255,.028);
+  box-shadow: inset 0 0 0 1px var(--edge); margin-bottom: 18px;
+}
+@media (max-width: 640px) { .sl-adstats { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+
+.sl-adtabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+.sl-adtab {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 18px; border: 0; border-radius: 999px; cursor: pointer;
+  font-family: 'Archivo', sans-serif; font-size: 11.5px; font-weight: 700;
+  letter-spacing: .09em; text-transform: uppercase; color: var(--text-3);
+  background: rgba(255,255,255,.045); box-shadow: inset 0 0 0 1px var(--edge);
+  transition: color .25s ease, background .25s ease, box-shadow .25s ease;
+}
+.sl-adtab:hover { color: var(--text); background: rgba(255,255,255,.08); }
+.sl-adtab.is-on {
+  color: #fff;
+  background: linear-gradient(180deg, #ec6f92 0%, #e0567f 52%, #c8446c 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.38), 0 6px 16px -8px rgba(224,86,127,.7);
+}
+
+.sl-adchips { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.sl-adchip {
+  padding: 7px 14px; border: 0; border-radius: 999px; cursor: pointer;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-3);
+  background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px var(--edge);
+  transition: color .2s ease, box-shadow .2s ease;
+}
+.sl-adchip:hover { color: var(--text); }
+.sl-adchip.is-on { color: var(--pink); box-shadow: inset 0 0 0 1px rgba(224,86,127,.5); }
+
+.sl-adbugs { display: flex; flex-direction: column; gap: 12px; }
+.sl-adbug {
+  position: relative; padding: 18px 20px; border-radius: var(--r-md);
+  background: rgba(255,255,255,.035); box-shadow: inset 0 0 0 1px var(--edge);
+}
+.sl-adbug[data-status="closed"] { opacity: .55; }
+.sl-adbug::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  border-radius: 3px 0 0 3px; background: var(--pink);
+}
+.sl-adbug[data-status="closed"]::before { background: var(--edge-lit); }
+.sl-adbug[data-status="open"]::before { background: var(--gold-lit); }
+
+.sl-adbugtop { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 9px; }
+.sl-adhandle { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: var(--gold-lit); display: block; }
+.sl-adsub { display: block; margin-top: 3px; font-size: 11.5px; color: var(--text-3); }
+.sl-adwhen { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-3); }
+.sl-adstatus {
+  margin-left: auto; padding: 3px 10px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  background: rgba(224,86,127,.16); color: #ffc2d3;
+}
+.sl-adstatus[data-s="open"] { background: rgba(201,162,39,.18); color: var(--gold-lit); }
+.sl-adstatus[data-s="closed"] { background: rgba(255,255,255,.07); color: var(--text-3); }
+
+.sl-adbugmsg { margin: 0 0 10px; font-size: 14.5px; line-height: 1.6; color: var(--text); }
+.sl-adbugmeta { margin: 0 0 12px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-3); }
+.sl-adbugacts { display: flex; gap: 8px; flex-wrap: wrap; }
+.sl-adbtn {
+  padding: 7px 14px; border: 0; border-radius: 999px; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--text-2);
+  background: rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px var(--edge);
+  transition: color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+.sl-adbtn:hover { color: var(--text); background: rgba(255,255,255,.09); }
+.sl-adbtn.is-del:hover { color: #ff9db8; box-shadow: inset 0 0 0 1px rgba(224,86,127,.5); }
+
+.sl-adtable td { vertical-align: middle; }
+.sl-adbar {
+  display: block; height: 8px; min-width: 60px; border-radius: 999px;
+  background: rgba(0,0,0,.35); box-shadow: inset 0 0 0 1px var(--edge); overflow: hidden;
+}
+.sl-adbarfill {
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--pink), var(--gold-lit));
+}
+.sl-caution { color: var(--gold-lit); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-admin.is-on, .sl-adsheet { animation: none; }
+  .sl-logobtn:hover { transform: none; }
+}
+
+/* the gate's own diagnostics — only opened when something will not work */
+.sl-adwhy {
+  margin-top: 14px; padding: 0; border: 0; background: none; cursor: pointer;
+  font-family: inherit; font-size: 12.5px; color: var(--text-3);
+  border-bottom: 1px solid rgba(224,86,127,.45);
+  transition: color .2s ease;
+}
+.sl-adwhy:hover { color: var(--pink); }
+.sl-addiag {
+  margin-top: 14px; padding: 14px 16px; border-radius: var(--r-sm);
+  background: rgba(255,255,255,.035); box-shadow: inset 0 0 0 1px var(--edge);
+  font-size: 12.5px; line-height: 1.55; color: var(--text-2);
+}
+.sl-addiaghead {
+  margin: 0 0 10px; font-family: 'Archivo', sans-serif; font-size: 10.5px;
+  font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--gold-lit);
+}
+.sl-addiag dl { margin: 0 0 12px; display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; }
+.sl-addiag dt { color: var(--text-3); }
+.sl-addiag dd {
+  margin: 0; text-align: right; color: var(--text);
+  font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; word-break: break-all;
+}
+.sl-addiag p { margin: 0; }
+
+/* ==================================================================
+   Back to the top
+
+   Shares the corner with the bug mark and sits above it. Absent until
+   there is enough page behind you to want it, and it leaves rather than
+   simply vanishing.
+   ================================================================== */
+.sl-totop {
+  position: fixed; right: 22px; bottom: 22px; z-index: 9997;
+  display: flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px; border: 0; border-radius: 50%; cursor: pointer;
+  color: rgba(255,255,255,.55);
+  background: rgba(20,20,22,.6);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), 0 10px 24px -14px rgba(0,0,0,1);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  opacity: 0; visibility: hidden; transform: translateY(10px) scale(.9);
+  transition: opacity .3s ease, transform .3s cubic-bezier(.34,1.4,.64,1),
+    visibility .3s, color .25s ease, box-shadow .25s ease, background .25s ease;
+}
+.sl-totop.has-bug { bottom: 76px; }
+.sl-totop.is-on { opacity: .5; visibility: visible; transform: none; }
+.sl-totop.is-on:hover {
+  opacity: 1; color: var(--gold-lit);
+  background: rgba(26,22,16,.82);
+  box-shadow: inset 0 0 0 1px rgba(227,195,116,.45), 0 12px 26px -12px rgba(0,0,0,1);
+  transform: translateY(-2px);
+}
+.sl-totop:active { transform: scale(.92); }
+.sl-totop:focus-visible { opacity: 1; visibility: visible; outline: 2px solid var(--pink); outline-offset: 3px; }
+.sl-totop svg { display: block; }
+
+@media (max-width: 600px) {
+  .sl-totop { right: 14px; bottom: 14px; }
+  .sl-totop.has-bug { bottom: 66px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sl-totop { transition: opacity .2s ease, visibility .2s; transform: none; }
+  .sl-totop.is-on:hover { transform: none; }
+}
+
+/* ==================================================================
+   What to work on
+
+   Advice worked out from the log rather than written in advance, so it
+   is given the warmth of advice and the gold rail that separates it
+   from a finding, which is only ever a measurement.
+   ================================================================== */
+.sl-coachitem {
+  position: relative; overflow: hidden; height: 100%;
+  padding: 26px 28px 24px 30px; border-radius: var(--r-md);
+  background:
+    radial-gradient(620px 280px at 0% 0%, rgba(201,162,39,.14) 0%, rgba(201,162,39,0) 70%),
+    linear-gradient(180deg, rgba(255,255,255,.055) 0%, rgba(255,255,255,.02) 100%);
+  box-shadow: inset 0 0 0 1px rgba(201,162,39,.24), inset 0 1px 0 rgba(247,231,184,.18);
+}
+.sl-coachitem::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: linear-gradient(180deg, var(--gold-lit) 0%, rgba(201,162,39,.32) 58%, rgba(224,86,127,.36) 100%);
+}
+.sl-coachlabel {
+  display: block; font-size: 10.5px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--gold-lit);
+}
+.sl-coachhead {
+  margin: 9px 0 0; font-family: 'Archivo', system-ui, sans-serif;
+  font-size: 21px; font-weight: 700; line-height: 1.26; letter-spacing: -.014em;
+  color: var(--text); text-wrap: balance;
+}
+.sl-coachfig { display: flex; align-items: baseline; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.sl-coachnum {
+  font-family: 'Archivo', system-ui, sans-serif;
+  font-size: 30px; font-weight: 700; letter-spacing: -.02em; color: var(--gold-hi);
+}
+.sl-coachfiglab { font-size: 13px; color: var(--text-3); }
+.sl-coachtext { margin: 12px 0 0; font-size: 14.5px; line-height: 1.65; color: var(--text-2); }
+@media (max-width: 560px) {
+  .sl-coachitem { padding: 20px 17px 18px 19px; }
+  .sl-coachhead { font-size: 18px; }
+  .sl-coachnum { font-size: 25px; }
+}
+
+/* ==================================================================
+   Why they did not book
+
+   A bar per theme rather than a pie: the question is which cause comes
+   up most, and a row of bars answers that at a glance where slices of
+   a circle have to be compared against each other first.
+   ================================================================== */
+.sl-why { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 20px; }
+.sl-whyrow {
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(80px, 2fr) auto;
+  gap: 14px; align-items: center;
+}
+.sl-whyname { display: block; min-width: 0; font-size: 14px; color: var(--text); }
+.sl-whyhint { display: block; font-size: 11.5px; color: var(--text-3); }
+.sl-whybar {
+  display: block; height: 10px; border-radius: 999px;
+  background: rgba(0,0,0,.32); box-shadow: inset 0 0 0 1px var(--edge); overflow: hidden;
+}
+.sl-whyfill {
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--pink-deep) 0%, var(--pink) 100%);
+  transition: width .9s cubic-bezier(.2,.8,.2,1);
+}
+.sl-whyn {
+  font-family: 'IBM Plex Mono', monospace; font-size: 13.5px;
+  font-weight: 600; color: var(--text-2); min-width: 26px; text-align: right;
+}
+.sl-whylead {
+  margin: 0 0 10px; font-size: 10.5px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--text-3);
+}
+.sl-whylist { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.sl-whylist li {
+  padding: 11px 14px; border-radius: var(--r-sm);
+  background: rgba(255,255,255,.035); box-shadow: inset 0 0 0 1px var(--edge);
+  font-size: 14px; line-height: 1.5; color: var(--text-2);
+}
+.sl-whycount {
+  display: inline-block; margin-right: 9px; padding: 1px 8px; border-radius: 999px;
+  background: var(--pink-wash); box-shadow: inset 0 0 0 1px rgba(224,86,127,.35);
+  font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; font-weight: 600; color: #ffd9e4;
+}
+@media (max-width: 560px) {
+  .sl-whyrow { grid-template-columns: minmax(0, 1fr) auto; }
+  .sl-whybar { grid-column: 1 / -1; order: 3; }
+}
+
+/* A tour's goal, under what the tour came to. */
+.sl-goalmark { color: var(--text-3); }
+.sl-goalmark.is-hit { color: var(--jade-lit); }
+
+/* ==================================================================
+   Limo money
+
+   The cut is the figure this card exists for, so it carries the gold
+   and the rest of the row stays plain. The total line under the table
+   is set off the same way a sum is set off from the rows above it.
+   ================================================================== */
+.sl-limonum { color: var(--gold-hi); }
+.sl-limocell { color: var(--gold-lit); font-weight: 600; }
+.sl-limototal td {
+  background: rgba(201,162,39,.07);
+  box-shadow: inset 0 1px 0 rgba(201,162,39,.3);
+  font-weight: 700;
+}
+.sl-limototal td:first-child { color: var(--gold-lit); }
+
+/* ==================================================================
+   In house / out of house
+
+   A switch rather than a button, because it reports a state as much as
+   it performs an action. Green while a tour is running — the only place
+   on the page that colour means "live" rather than "kept".
+   ================================================================== */
+.sl-tourbar {
+  display: block;
+  margin: 18px 0 0; padding: 16px 20px; border-radius: var(--r-md);
+  background: linear-gradient(180deg, rgba(255,255,255,.04) 0%, rgba(255,255,255,.018) 100%);
+  box-shadow: inset 0 0 0 1px var(--edge);
+  transition: box-shadow .3s ease, background .3s ease;
+}
+.sl-tourbar.is-in {
+  background:
+    radial-gradient(520px 200px at 0% 0%, rgba(18,160,106,.12) 0%, rgba(18,160,106,0) 70%),
+    linear-gradient(180deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.02) 100%);
+  box-shadow: inset 0 0 0 1px rgba(22,179,124,.34);
+}
+
+.sl-tourhead {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 18px; flex-wrap: wrap; position: relative; z-index: 1;
+}
+.sl-tourstate { display: flex; align-items: center; gap: 13px; min-width: 0; }
+.sl-tourstate strong {
+  display: block; font-family: 'Archivo', sans-serif; font-size: 15.5px;
+  font-weight: 700; letter-spacing: -.01em; color: var(--text);
+}
+.sl-tourdates {
+  display: block; margin-top: 2px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-3);
+}
+.sl-tourdot {
+  width: 10px; height: 10px; flex: none; border-radius: 50%;
+  background: rgba(255,255,255,.2); box-shadow: inset 0 0 0 1px rgba(255,255,255,.15);
+  transition: background .3s ease, box-shadow .3s ease;
+}
+.sl-tourbar.is-in .sl-tourdot {
+  background: var(--jade-lit);
+  box-shadow: 0 0 12px 2px rgba(22,179,124,.5);
+  animation: sltourpulse 2.6s ease-in-out infinite;
+}
+@keyframes sltourpulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+
+.sl-toursw {
+  display: inline-flex; align-items: center; gap: 12px; flex: none;
+  padding: 8px 16px 8px 8px; border: 0; border-radius: 999px; cursor: pointer;
+  font-family: 'Archivo', sans-serif; font-size: 11.5px; font-weight: 700;
+  letter-spacing: .09em; text-transform: uppercase; color: var(--text-2);
+  background: rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px var(--edge);
+  transition: color .25s ease, background .25s ease, box-shadow .25s ease;
+}
+.sl-toursw:hover:not(:disabled) { color: var(--text); background: rgba(255,255,255,.09); }
+.sl-toursw:disabled { opacity: .55; cursor: default; }
+.sl-toursw:focus-visible { outline: 2px solid var(--pink); outline-offset: 3px; }
+
+.sl-swtrack {
+  position: relative; width: 46px; height: 26px; flex: none; border-radius: 999px;
+  background: rgba(0,0,0,.45); box-shadow: inset 0 0 0 1px var(--edge);
+  transition: background .3s ease, box-shadow .3s ease;
+}
+.sl-swknob {
+  position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+  background: linear-gradient(180deg, #f2f2f4 0%, #c9c9cf 100%);
+  box-shadow: 0 2px 6px -2px rgba(0,0,0,.9);
+  transition: transform .32s cubic-bezier(.34,1.4,.64,1), background .3s ease;
+}
+.sl-tourbar.is-in .sl-swtrack {
+  background: linear-gradient(180deg, #16b37c 0%, #0f8f62 100%);
+  box-shadow: inset 0 0 0 1px rgba(22,179,124,.7);
+}
+.sl-tourbar.is-in .sl-swknob { transform: translateX(20px); }
+
+/* ------------------------------------------------------------------
+   Arriving and leaving
+
+   Two different moments, so two different animations rather than one
+   played backwards. Going in is warmth arriving: a band of gold-into-
+   pink light sweeps across the bar from the left, the dot ignites, and
+   the switch settles. Going out is the light withdrawing to the right
+   and the colour draining, which is a quieter thing and should feel it.
+
+   The glow is its own element so the sweep can be clipped to the bar
+   without the bar itself needing overflow hidden on its rounded corner.
+   ------------------------------------------------------------------ */
+.sl-tourbar { position: relative; overflow: hidden; }
+.sl-tourglow {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: linear-gradient(100deg,
+    rgba(255,255,255,0) 34%,
+    rgba(247,231,184,.16) 46%,
+    rgba(22,179,124,.2) 52%,
+    rgba(224,86,127,.14) 58%,
+    rgba(255,255,255,0) 70%);
+}
+
+.sl-tourbar.sl-moved-in .sl-tourglow { animation: sltourin-sweep 1.15s cubic-bezier(.25,.8,.3,1) both; }
+.sl-tourbar.sl-moved-out .sl-tourglow {
+  animation: sltourout-sweep .95s cubic-bezier(.3,.7,.3,1) both;
+  background: linear-gradient(100deg,
+    rgba(255,255,255,0) 34%,
+    rgba(255,255,255,.07) 50%,
+    rgba(255,255,255,0) 66%);
+}
+@keyframes sltourin-sweep {
+  0%   { opacity: 0; transform: translateX(-42%); }
+  22%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(42%); }
+}
+@keyframes sltourout-sweep {
+  0%   { opacity: 0; transform: translateX(-14%); }
+  25%  { opacity: .9; }
+  100% { opacity: 0; transform: translateX(46%); }
+}
+
+/* the whole bar lifts as you arrive, and settles as you go */
+.sl-tourbar.sl-moved-in { animation: sltourarrive .8s cubic-bezier(.34,1.3,.64,1) both; }
+.sl-tourbar.sl-moved-out { animation: sltourleave .65s ease both; }
+@keyframes sltourarrive {
+  0%   { transform: scale(1); }
+  38%  { transform: scale(1.014); }
+  100% { transform: scale(1); }
+}
+@keyframes sltourleave {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(.992); }
+  100% { transform: scale(1); }
+}
+
+/* the dot catches first, because it is the thing that says "live" */
+.sl-tourbar.sl-moved-in .sl-tourdot { animation: sltourignite .9s cubic-bezier(.3,.9,.3,1) both; }
+@keyframes sltourignite {
+  0%   { transform: scale(.6); box-shadow: 0 0 0 0 rgba(22,179,124,.6); }
+  45%  { transform: scale(1.5); box-shadow: 0 0 0 9px rgba(22,179,124,0); }
+  100% { transform: scale(1); box-shadow: 0 0 12px 2px rgba(22,179,124,.5); }
+}
+.sl-tourbar.sl-moved-out .sl-tourdot { animation: sltourdim .7s ease both; }
+@keyframes sltourdim {
+  0%   { transform: scale(1.25); box-shadow: 0 0 12px 2px rgba(22,179,124,.45); }
+  100% { transform: scale(1); box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); }
+}
+
+/* the label changes word, so it is worth a beat rather than a swap */
+.sl-tourbar.sl-moved-in .sl-swlab,
+.sl-tourbar.sl-moved-out .sl-swlab { animation: sltourlab .55s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes sltourlab {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: none; }
+}
+
+.sl-swlab { display: inline-block; min-width: 92px; text-align: left; }
+.sl-tourstate { position: relative; z-index: 1; }
+.sl-toursw { position: relative; z-index: 1; }
+
+.sl-tourhint { margin: 10px 2px 0; font-size: 12.5px; line-height: 1.55; color: var(--text-3); }
+.sl-linkbtn {
+  padding: 0; border: 0; background: none; cursor: pointer; font: inherit;
+  color: var(--pink); border-bottom: 1px solid rgba(224,86,127,.45);
+}
+.sl-linkbtn:hover { color: var(--pink-hi, #ec6f92); }
+
+/* the tour just closed */
+.sl-tourdone { margin-top: 18px; animation: sltourin .45s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes sltourin { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 560px) {
+  .sl-tourbar { flex-direction: column; align-items: stretch; }
+  .sl-toursw { justify-content: space-between; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sl-tourbar.is-in .sl-tourdot { animation: none; }
+  .sl-tourdone { animation: none; }
+  .sl-swknob { transition: none; }
+  .sl-tourbar.sl-moved-in, .sl-tourbar.sl-moved-out,
+  .sl-tourbar.sl-moved-in .sl-tourglow, .sl-tourbar.sl-moved-out .sl-tourglow,
+  .sl-tourbar.sl-moved-in .sl-tourdot, .sl-tourbar.sl-moved-out .sl-tourdot,
+  .sl-tourbar.sl-moved-in .sl-swlab, .sl-tourbar.sl-moved-out .sl-swlab { animation: none; }
+}
+
+/* --- correcting when the shift began --- */
+.sl-tourEdit {
+  margin-top: 10px; padding: 16px 18px; border-radius: var(--r-md);
+  background: linear-gradient(180deg, rgba(255,255,255,.04) 0%, rgba(255,255,255,.016) 100%);
+  box-shadow: inset 0 0 0 1px var(--edge);
+  animation: sltoureditin .28s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes sltoureditin {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+.sl-tourEditlab {
+  margin: 0 0 12px; font-family: 'Archivo', sans-serif; font-size: 10.5px;
+  font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--jade-lit);
+}
+.sl-tourEditrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+/* .sl-input is a full-width field elsewhere on the form. Its own `width:100%`
+   is declared later in the file, so matching its specificity is not enough —
+   this needs to outrank it, hence the doubled class. */
+.sl-tourEdit .sl-tourEditrow input.sl-input {
+  flex: 0 0 auto; width: auto; min-width: 0; max-width: 190px;
+}
+.sl-tourEditrow button { flex: 0 0 auto; }
+.sl-savesm { padding: 11px 20px; font-size: 11px; }
+.sl-tourEdit .sl-aderr { margin: 12px 0 0; }
+.sl-tourEdit .sl-fn { margin: 12px 0 0; }
+@media (max-width: 560px) {
+  .sl-tourEditrow { flex-direction: column; align-items: stretch; }
+  .sl-tourEditrow .sl-input, .sl-tourEditrow button { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .sl-tourEdit { animation: none; } }
+
+/* the shift state could not be checked — say so rather than guess */
+.sl-tourbar.is-unknown { box-shadow: inset 0 0 0 1px rgba(201,162,39,.3); }
+.sl-tourbar.is-unknown .sl-tourdot {
+  background: var(--gold-lit); box-shadow: 0 0 8px 1px rgba(201,162,39,.35);
+}
+.sl-tourbar.is-unknown .sl-tourdates { color: var(--gold-lit); }
+
+/* ==================================================================
+   The tour goal
+
+   Sits under the in-house bar while a shift is running: what has been
+   booked, how far that is from the goal, and how many more parties at
+   your own average would close it.
+   ================================================================== */
+.sl-goal {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+  margin-top: 16px; padding-top: 16px;
+  border-top: 1px solid var(--edge);
+  animation: slgoalin .4s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes slgoalin {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+/* Reaching the goal turns the row into a framed panel. The frame is drawn
+   with an inset ring, which sits exactly on the content box — so without
+   padding of its own the gold line ran through "BOOKED THIS TOUR" and
+   clipped "6 parties" along the bottom. The row keeps its separating rule
+   until it is framed, and then the frame replaces it rather than doubling
+   up with it. */
+.sl-goal.is-hit {
+  margin-top: 18px; padding: 18px 22px 16px;
+  border-top-color: transparent;
+  border-radius: var(--r-md);
+}
+
+.sl-goalfig { flex: 0 0 auto; min-width: 150px; }
+.sl-goallab {
+  display: block; font-family: 'Archivo', sans-serif; font-size: 10px;
+  font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3);
+}
+.sl-goalnum {
+  display: block; margin-top: 4px;
+  font-family: 'Archivo', sans-serif; font-size: 26px; font-weight: 700;
+  letter-spacing: -.02em; color: var(--text); font-variant-numeric: tabular-nums;
+}
+.sl-goalsub {
+  display: block; margin-top: 2px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-3);
+}
+
+.sl-goalbarwrap { flex: 1 1 260px; min-width: 0; }
+.sl-goalhead {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  margin-bottom: 8px; font-size: 13.5px; color: var(--text);
+}
+.sl-goalof { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-3); }
+.sl-goalbar {
+  height: 16px; border-radius: 999px; overflow: hidden;
+  background: rgba(0,0,0,.42); box-shadow: inset 0 0 0 1px var(--edge);
+}
+.sl-goalfill {
+  position: relative; overflow: hidden;
+  height: 100%; border-radius: 999px; min-width: 2px;
+  background: linear-gradient(90deg, var(--pink) 0%, #e9a24f 55%, var(--gold-lit) 100%);
+  box-shadow: 0 0 14px -2px rgba(224,86,127,.7);
+  /* Slow, because it is filling rather than jumping. */
+  transition: width 1.1s cubic-bezier(.25,.85,.3,1);
+}
+
+/* Two waves crossing at different speeds. One alone reads as a stripe
+   sliding past; two out of step read as a surface moving. They ride a
+   little above the fill's own top edge so the crests break it. */
+.sl-goalwave {
+  position: absolute; left: -50%; top: -6px; width: 200%; height: 200%;
+  opacity: 0; pointer-events: none;
+  background: radial-gradient(60% 130% at 50% 100%, rgba(255,255,255,.34) 0%, rgba(255,255,255,0) 62%);
+}
+.sl-goalwave2 {
+  top: -3px;
+  background: radial-gradient(45% 120% at 50% 100%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 66%);
+}
+.sl-goalfill.is-live .sl-goalwave  { animation: slslosh 5.5s ease-in-out infinite; opacity: 1; }
+.sl-goalfill.is-live .sl-goalwave2 { animation: slslosh2 7.9s ease-in-out infinite; opacity: 1; }
+
+@keyframes slslosh {
+  0%, 100% { transform: translateX(-14%) translateY(2px); }
+  50%      { transform: translateX(14%) translateY(-2px); }
+}
+@keyframes slslosh2 {
+  0%, 100% { transform: translateX(12%) translateY(-1px); }
+  50%      { transform: translateX(-12%) translateY(3px); }
+}
+.sl-goalnote { margin: 8px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--text-3); }
+.sl-goalset { flex: 0 0 auto; }
+
+/* reached */
+.sl-goal.is-hit {
+  background:
+    radial-gradient(560px 220px at 0% 0%, rgba(201,162,39,.14) 0%, rgba(201,162,39,0) 70%),
+    linear-gradient(180deg, rgba(255,255,255,.055) 0%, rgba(255,255,255,.02) 100%);
+  box-shadow: inset 0 0 0 1px rgba(227,195,116,.45);
+}
+.sl-goal.is-hit .sl-goalfill {
+  background: linear-gradient(90deg, var(--gold) 0%, var(--gold-hi) 50%, var(--gold-lit) 100%);
+  box-shadow: 0 0 18px -2px rgba(227,195,116,.85);
+}
+.sl-goal.is-hit .sl-goalhead span:first-child {
+  color: var(--gold-hi); font-weight: 700; letter-spacing: .02em;
+}
+
+/* the crossing itself */
+.sl-goal.sl-moved-goal { animation: slgoalhit 1.1s cubic-bezier(.34,1.3,.64,1) both; }
+@keyframes slgoalhit {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+.sl-goal.sl-moved-goal::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(100deg,
+    rgba(255,255,255,0) 32%, rgba(247,231,184,.3) 50%, rgba(255,255,255,0) 68%);
+  animation: slgoalsweep 1.3s cubic-bezier(.25,.8,.3,1) both;
+}
+@keyframes slgoalsweep {
+  0%   { opacity: 0; transform: translateX(-45%); }
+  20%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(45%); }
+}
+.sl-goal.sl-moved-goal .sl-goalnum { animation: slgoalpop .8s cubic-bezier(.34,1.4,.64,1) both; }
+@keyframes slgoalpop {
+  0%   { transform: scale(1); color: var(--text); }
+  35%  { transform: scale(1.12); color: var(--gold-hi); }
+  100% { transform: scale(1); color: var(--gold-hi); }
+}
+
+.sl-goalEdit { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sl-goalEdit .sl-cur { color: var(--text-3); font-family: 'IBM Plex Mono', monospace; }
+.sl-goal .sl-goalEdit input.sl-input {
+  flex: 0 0 auto; width: auto; min-width: 0; max-width: 130px;
+}
+
+@media (max-width: 700px) {
+  .sl-goal { gap: 14px; }
+  .sl-goal.is-hit { padding: 15px 15px 14px; }
+  .sl-goalfig { min-width: 0; }
+  .sl-goalbarwrap { flex: 1 1 100%; }
+  .sl-goalset { flex: 1 1 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sl-goal, .sl-goal.sl-moved-goal, .sl-goal.sl-moved-goal::after,
+  .sl-goal.sl-moved-goal .sl-goalnum { animation: none; }
+  .sl-goalfill { transition: none; }
+  .sl-goalfill.is-live .sl-goalwave,
+  .sl-goalfill.is-live .sl-goalwave2 { animation: none; opacity: .5; }
+}
+
+/* ==================================================================
+   The insights headline
+
+   One figure leads, three rates are drawn as rings, the ticket mix is
+   a bar, and anything remarkable is a badge. Six identical cells told
+   you nothing about what mattered — every number the same size means
+   every number the same weight.
+   ================================================================== */
+.sl-hero {
+  display: flex; align-items: center; gap: clamp(20px, 4vw, 52px); flex-wrap: wrap;
+  padding: 26px clamp(20px, 2.6vw, 34px);
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(680px 280px at 0% 0%, rgba(224,86,127,.13) 0%, rgba(224,86,127,0) 68%),
+    linear-gradient(180deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.018) 100%);
+  box-shadow: inset 0 0 0 1px rgba(224,86,127,.22), inset 0 1px 0 rgba(247,231,184,.12),
+    0 26px 60px -40px rgba(0,0,0,1);
+}
+.sl-heromain { flex: 1 1 240px; min-width: 0; }
+.sl-herolab {
+  display: block; font-family: 'Archivo', sans-serif; font-size: 10.5px;
+  font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--pink);
+}
+.sl-heronum {
+  display: block; margin: 6px 0 4px;
+  font-family: 'Archivo', sans-serif; font-size: clamp(38px, 5.4vw, 58px);
+  font-weight: 700; letter-spacing: -.035em; line-height: 1; color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.sl-herosub { display: block; font-size: 13.5px; color: var(--text-2); }
+.sl-heromove {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 12px;
+  padding: 5px 12px; border-radius: 999px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11.5px;
+}
+.sl-heromove[data-dir="up"] { color: var(--jade-lit); background: rgba(18,160,106,.15); box-shadow: inset 0 0 0 1px rgba(22,179,124,.4); }
+.sl-heromove[data-dir="down"] { color: var(--rose); background: rgba(207,96,118,.13); box-shadow: inset 0 0 0 1px rgba(207,96,118,.36); }
+
+.sl-herorings { display: flex; gap: clamp(16px, 2.4vw, 30px); flex-wrap: wrap; }
+.sl-ring { display: flex; align-items: center; gap: 12px; }
+.sl-ring[data-tone="good"] { color: var(--jade-lit); }
+.sl-ring[data-tone="pink"] { color: var(--pink); }
+.sl-ring[data-tone="gold"] { color: var(--gold-lit); }
+.sl-ringart { position: relative; width: 64px; height: 64px; flex: none; }
+.sl-ringart svg { display: block; }
+.sl-ringart circle:last-child {
+  transition: stroke-dasharray .9s cubic-bezier(.2,.8,.2,1);
+}
+.sl-ringpct {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: 'Archivo', sans-serif; font-size: 17px; font-weight: 700;
+  letter-spacing: -.02em; color: var(--text); font-variant-numeric: tabular-nums;
+}
+.sl-ringpct i { font-style: normal; font-size: 10px; margin-left: 1px; color: var(--text-3); }
+.sl-ringtext { min-width: 0; }
+.sl-ringtext strong {
+  display: block; font-family: 'Archivo', sans-serif; font-size: 12.5px;
+  font-weight: 700; letter-spacing: -.005em; color: var(--text);
+}
+.sl-ringtext span {
+  display: block; margin-top: 2px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-3);
+}
+
+/* --- badges --- */
+.sl-badges { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 14px; }
+.sl-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 14px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 600; color: var(--text);
+  background: rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px var(--edge);
+}
+.sl-badge svg { flex: none; }
+.sl-badge[data-tone="hot"]  { color: #ffb27a; background: rgba(233,162,79,.14); box-shadow: inset 0 0 0 1px rgba(233,162,79,.4); }
+.sl-badge[data-tone="gold"] { color: var(--gold-hi); background: rgba(201,162,39,.15); box-shadow: inset 0 0 0 1px rgba(201,162,39,.42); }
+.sl-badge[data-tone="good"] { color: var(--jade-lit); background: rgba(18,160,106,.14); box-shadow: inset 0 0 0 1px rgba(22,179,124,.38); }
+.sl-badge[data-tone="pink"] { color: #ffb3c8; background: rgba(224,86,127,.14); box-shadow: inset 0 0 0 1px rgba(224,86,127,.4); }
+.sl-badge[data-tone="cool"] { color: var(--text-2); }
+
+/* --- the ticket mix as one bar --- */
+.sl-mix { margin-top: 16px; }
+.sl-mixbar {
+  display: flex; height: 12px; border-radius: 999px; overflow: hidden;
+  background: rgba(0,0,0,.4); box-shadow: inset 0 0 0 1px var(--edge);
+}
+.sl-mixseg { display: block; height: 100%; transition: width .7s cubic-bezier(.2,.8,.2,1); }
+.sl-mixseg[data-kind="appt"]   { background: linear-gradient(180deg, #ec6f92, #d94a73); }
+.sl-mixseg[data-kind="req"]    { background: linear-gradient(180deg, #6fb1ec, #4a86d9); }
+.sl-mixseg[data-kind="lineup"] { background: linear-gradient(180deg, #b98fe0, #9463c9); }
+.sl-mixseg[data-kind="bar"]    { background: linear-gradient(180deg, #e9c46a, #c9a227); }
+.sl-mixseg[data-kind="pull"]   { background: linear-gradient(180deg, #5fc9a0, #16b37c); }
+
+.sl-mixkeys { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
+.sl-mixkey {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12px; color: var(--text-3);
+}
+.sl-mixkey i { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.sl-mixkey[data-kind="appt"] i   { background: #e0567f; }
+.sl-mixkey[data-kind="req"] i    { background: #4a86d9; }
+.sl-mixkey[data-kind="lineup"] i { background: #9463c9; }
+.sl-mixkey[data-kind="bar"] i    { background: #c9a227; }
+.sl-mixkey[data-kind="pull"] i   { background: #16b37c; }
+.sl-mixkey b {
+  font-family: 'IBM Plex Mono', monospace; font-size: 11.5px;
+  font-weight: 500; color: var(--text);
+}
+
+/* the strip that follows is secondary now, so it reads smaller */
+.sl-statsmall { margin-top: 18px; }
+.sl-statsmall .sl-stat { padding: 18px 16px 16px; }
+.sl-statsmall .sl-statnum { font-size: 25px; }
+
+@media (max-width: 900px) {
+  .sl-herorings { width: 100%; justify-content: space-between; }
+  .sl-ring { flex: 1 1 auto; }
+}
+@media (max-width: 560px) {
+  .sl-ring { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .sl-ringtext span { font-size: 10.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sl-ringart circle:last-child, .sl-mixseg { transition: none; }
+}
+.sl-heroshape {
+  display: block; margin-top: 6px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-3);
+}
+
+/* --- the rings, larger and filling on arrival --- */
+.sl-ringart { width: 88px; height: 88px; }
+.sl-ringarc { transition: stroke-dasharray 1.1s cubic-bezier(.25,.85,.3,1); }
+.sl-ringpct { font-size: 23px; }
+.sl-ringpct i { font-size: 12px; }
+.sl-ringtext strong { font-size: 13.5px; }
+.sl-ringtext span { font-size: 11.5px; }
+.sl-ring { gap: 14px; }
+
+/* --- badges that open a night --- */
+.sl-badge.is-open {
+  position: relative; overflow: hidden; border: 0; cursor: pointer;
+  font-family: inherit;
+  transition: transform .3s cubic-bezier(.34,1.4,.64,1), box-shadow .3s ease, filter .3s ease;
+}
+.sl-badge.is-open > svg:last-child { opacity: .5; margin-left: -1px; transition: transform .3s ease, opacity .3s ease; }
+.sl-badge.is-open:hover {
+  transform: scale(1.06) translateY(-2px);
+  filter: brightness(1.12);
+  box-shadow: inset 0 0 0 1px currentColor, 0 12px 26px -14px rgba(0,0,0,1);
+}
+.sl-badge.is-open:hover > svg:last-child { opacity: 1; transform: translateX(3px); }
+.sl-badge.is-open:active { transform: scale(.98); }
+.sl-badge.is-open:focus-visible { outline: 2px solid var(--pink); outline-offset: 3px; }
+
+/* the gloss travels across on hover, once per pass */
+.sl-badgegloss {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: linear-gradient(105deg,
+    rgba(255,255,255,0) 36%, rgba(255,255,255,.34) 50%, rgba(255,255,255,0) 64%);
+  transform: translateX(-70%);
+}
+.sl-badge.is-open:hover .sl-badgegloss { animation: slbadgegloss .75s cubic-bezier(.3,.8,.3,1) both; }
+@keyframes slbadgegloss {
+  0%   { opacity: 0; transform: translateX(-70%); }
+  18%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(70%); }
+}
+
+/* --- the night a badge opens --- */
+.sl-peek {
+  position: fixed; inset: 0; z-index: 10001; display: none;
+  align-items: flex-start; justify-content: center;
+  padding: clamp(14px, 6vh, 60px) 16px;
+  background: rgba(4,4,5,.76);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.sl-peek.is-on { display: flex; animation: slfadein .22s ease both; }
+.sl-peeksheet {
+  position: relative; width: min(560px, 100%);
+  padding: 26px clamp(20px, 3vw, 30px) 24px;
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(600px 260px at 0% 0%, rgba(224,86,127,.12) 0%, rgba(224,86,127,0) 70%),
+    linear-gradient(180deg, #151517 0%, #0d0d0f 100%);
+  box-shadow: inset 0 0 0 1px rgba(224,86,127,.26), inset 0 1px 0 rgba(255,255,255,.07),
+    0 40px 90px -40px rgba(0,0,0,1);
+  animation: slrise .28s cubic-bezier(.2,.8,.2,1) both;
+}
+.sl-peekclose {
+  position: absolute; top: 16px; right: 16px;
+  width: 30px; height: 30px; border: 0; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-3); background: rgba(255,255,255,.06);
+  transition: color .2s ease, background .2s ease, transform .2s ease;
+}
+.sl-peekclose:hover { color: var(--text); background: rgba(255,255,255,.12); transform: rotate(90deg); }
+.sl-peekclose:focus-visible { outline: 2px solid var(--pink); outline-offset: 3px; }
+
+.sl-peekbody { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+.sl-peekticket {
+  padding: 16px 18px; border-radius: var(--r-md);
+  background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px var(--edge);
+}
+.sl-peektop { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 11px; }
+.sl-peekid { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--pink); }
+.sl-peekwhen { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-3); }
+.sl-peekmoney {
+  margin-left: auto; font-family: 'Archivo', sans-serif; font-size: 18px;
+  font-weight: 700; color: var(--gold-hi); font-variant-numeric: tabular-nums;
+}
+.sl-peekmoney i {
+  font-style: normal; margin-left: 7px; font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px; font-weight: 400; color: var(--text-3);
+}
+.sl-peekreason { margin: 10px 0 0; font-size: 13.5px; font-style: italic; color: var(--text-2); }
+
+@media (max-width: 560px) {
+  .sl-ringart { width: 72px; height: 72px; }
+  .sl-ringpct { font-size: 19px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sl-ringarc { transition: none; }
+  .sl-badge.is-open:hover { transform: none; }
+  .sl-badge.is-open:hover .sl-badgegloss { animation: none; }
+  .sl-peek.is-on, .sl-peeksheet { animation: none; }
+}
+
+/* ==================================================================
+   Are you sure?
+
+   Shown before a ticket is deleted, with the ticket in it. Sits above
+   everything, including the badge window, because it is the one thing
+   on screen that cannot be undone.
+   ================================================================== */
+.sl-confirm {
+  position: fixed; inset: 0; z-index: 10002; display: none;
+  align-items: flex-start; justify-content: center;
+  padding: clamp(14px, 6vh, 60px) 16px;
+  background: rgba(4,4,5,.8);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.sl-confirm.is-on { display: flex; animation: slfadein .2s ease both; }
+.sl-confirmsheet {
+  position: relative; width: min(520px, 100%);
+  padding: 26px clamp(20px, 3vw, 30px) 24px;
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(600px 260px at 0% 0%, rgba(207,96,118,.14) 0%, rgba(207,96,118,0) 70%),
+    linear-gradient(180deg, #171516 0%, #0d0d0f 100%);
+  box-shadow: inset 0 0 0 1px rgba(207,96,118,.34), inset 0 1px 0 rgba(255,255,255,.07),
+    0 40px 90px -40px rgba(0,0,0,1);
+  animation: slrise .26s cubic-bezier(.2,.8,.2,1) both;
+}
+.sl-confirmsheet .sl-eyebrow { color: var(--rose); }
+.sl-confirmsheet .sl-eyebrow::after { background: rgba(207,96,118,.3); }
+
+.sl-confirmwarn {
+  margin: 16px 0 0; padding: 12px 15px; border-radius: var(--r-sm);
+  font-size: 13px; line-height: 1.55; color: #ffc2d3;
+  background: rgba(207,96,118,.1); box-shadow: inset 0 0 0 1px rgba(207,96,118,.3);
+}
+.sl-confirmacts {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 10px; flex-wrap: wrap; margin-top: 18px;
+}
+.sl-danger {
+  padding: 13px 22px; border: 0; border-radius: 999px; cursor: pointer;
+  font-family: 'Archivo', sans-serif; font-size: 11.5px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase; color: #fff;
+  background: linear-gradient(180deg, #d9647f 0%, #c04a66 55%, #a53c55 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 10px 22px -12px rgba(207,96,118,.85);
+  transition: transform .15s ease, box-shadow .25s ease, filter .2s ease;
+}
+.sl-danger:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.sl-danger:active { transform: scale(.97); }
+.sl-danger:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+@media (max-width: 480px) {
+  .sl-confirmacts { flex-direction: column-reverse; align-items: stretch; }
+  .sl-confirmacts button { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sl-confirm.is-on, .sl-confirmsheet { animation: none; }
+  .sl-danger:hover { transform: none; }
+}
+
+/* controls lifted out of a card head, kept where they can be reached */
+.sl-panelctl { display: flex; justify-content: flex-end; margin-bottom: 14px; }
+
+/* --- graphics quality ---
+   Curves and gradients are drawn for precision rather than speed; at these
+   sizes the difference is visible on a ring's edge and on the seal's rim. */
+.sl-app svg { shape-rendering: geometricPrecision; }
+.sl-logomark { shape-rendering: geometricPrecision; }
+
+/* The arc carries its own light now, so the glow beneath it can be softer
+   and come from the ring rather than from the colour class. */
+.sl-ringart { filter: drop-shadow(0 2px 5px rgba(0,0,0,.5)); }
+.sl-ring[data-tone="good"] .sl-ringarc { filter: drop-shadow(0 0 6px rgba(22,179,124,.45)); }
+.sl-ring[data-tone="pink"] .sl-ringarc { filter: drop-shadow(0 0 6px rgba(224,86,127,.45)); }
+.sl-ring[data-tone="gold"] .sl-ringarc { filter: drop-shadow(0 0 6px rgba(201,162,39,.45)); }
+
+/* Type renders a shade crisper on the dark ground with this on. */
+.sl-app { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+/* ==================================================================
+   Gold detailing
+
+   The palette had pink doing all the accent work and gold reserved for
+   the seal and the goal bar. Gold is the metal the mark is struck from,
+   so it belongs wherever the eye should read weight rather than action:
+   headings, rules, the edges of raised things. Pink stays for anything
+   that can be pressed.
+   ================================================================== */
+
+/* a hairline of gold along the top edge of every card, brightest at the
+   left where the light falls */
+.sl-card::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px;
+  border-radius: inherit; pointer-events: none;
+  background: linear-gradient(90deg,
+    rgba(247,231,184,.34) 0%, rgba(201,162,39,.16) 34%, rgba(255,255,255,0) 72%);
+}
+
+/* section eyebrows get a gold rule rather than a pink one — they label,
+   they do not act */
+.sl-eyebrow::before {
+  background: linear-gradient(90deg, var(--gold-lit), rgba(201,162,39,.15));
+}
+
+/* the stat strip: a gold hairline under the figures, and gold labels */
+.sl-stats { position: relative; }
+.sl-stats::after {
+  content: ""; position: absolute; left: 6%; right: 6%; bottom: 0; height: 1px;
+  background: linear-gradient(90deg,
+    rgba(201,162,39,0), rgba(201,162,39,.28) 30%, rgba(247,231,184,.34) 50%,
+    rgba(201,162,39,.28) 70%, rgba(201,162,39,0));
+}
+.sl-statlab { color: rgba(214,190,132,.72); }
+
+/* the log's own tickets get a gold seam down the stub edge */
+.sl-stub { position: relative; }
+.sl-stub::after {
+  content: ""; position: absolute; left: 0; top: 12%; bottom: 12%; width: 1px;
+  background: linear-gradient(180deg,
+    rgba(247,231,184,0), rgba(201,162,39,.34), rgba(247,231,184,0));
+  pointer-events: none;
+}
+
+/* panel marks pick up a gold ring, so a closed panel reads as an object
+   rather than a coloured square */
+.sl-panelicon { box-shadow: inset 0 0 0 1px rgba(224,86,127,.32), inset 0 1px 0 rgba(247,231,184,.22),
+  0 0 0 1px rgba(201,162,39,.14); }
+.sl-panel.is-open .sl-panelicon { box-shadow: inset 0 1px 0 rgba(255,255,255,.4),
+  0 0 0 1px rgba(227,195,116,.3), 0 6px 16px -8px rgba(224,86,127,.8); }
+
+/* the header rule beneath the lockup runs gold into pink */
+.sl-top::after {
+  background: linear-gradient(90deg, var(--gold-lit) 0%, var(--gold) 38%, var(--pink) 100%);
+  width: 128px;
+}
+
+/* the tab bar sits in a gold-edged trough */
+.sl-tabs { box-shadow: inset 0 0 0 1px var(--edge), inset 0 1px 0 rgba(247,231,184,.07); }
+
+/* the scroll pane's thumb, matched to the seam */
+.sl-logscroll { scrollbar-color: rgba(201,162,39,.45) transparent; }
+.sl-logscroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(201,162,39,.6), rgba(138,99,24,.4));
+}
+.sl-logscroll::-webkit-scrollbar-thumb:hover { background: var(--gold-lit); }
+
+/* ==================================================================
+   3.27 — four tabs on a phone
+   The bar scrolled sideways with its scrollbar hidden, so once Past
+   tours joined it the fourth tab sat off the edge of a phone with
+   nothing to say it was there. Under 600px the tabs stand two by two,
+   all of them in view. An odd one out takes the full row.
+   ================================================================== */
+@media (max-width: 600px) {
+  .sl-app .sl-tabs {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
+    overflow: visible; border-radius: 26px; padding: 6px;
+  }
+  .sl-app .sl-tabs .sl-tab { width: 100%; min-width: 0; justify-content: center; white-space: nowrap; border-radius: 20px; }
+  .sl-app .sl-tabs .sl-tab:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .sl-app .sl-tabs.is-swept { overflow: hidden; }
+}
+
+/* ==================================================================
+   3.28 — the suggestion on each insight
+   The first line is the one to act on, so it is set as a statement
+   rather than as one bullet among three. Group readings carry a
+   single suggestion in the same frame.
+   ================================================================== */
+.sl-moveslead li:first-child { color: var(--text); font-size: 14.5px; font-weight: 600; }
+.sl-moveslead li:first-child::before { width: 9px; height: 4px; background: var(--pink); }
+.sl-gimove { margin-top: 16px; }
+.sl-gimovetext { margin: 0; font-size: 14.5px; line-height: 1.55; font-weight: 600; color: var(--text); }
